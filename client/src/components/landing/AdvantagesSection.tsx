@@ -35,7 +35,7 @@ export default function AdvantagesSection() {
           ))}
         </div>
         <Link href="/auth/signup" className="bg-teal-600 text-white font-semibold px-5 py-2 rounded-lg hover:bg-teal-700 transition shadow">
-          Book Now
+          Sign Up
         </Link>
       </motion.div>
       <motion.div
@@ -46,7 +46,7 @@ export default function AdvantagesSection() {
         transition={{ duration: 0.7 }}
       >
         <Image
-          src="/advantage-image.jpg"
+          src="https://i.postimg.cc/1X44fx8z/advantage-image.jpg"
           alt="Recovery"
           fill
           sizes="(max-width: 768px) 80vw, 400px"

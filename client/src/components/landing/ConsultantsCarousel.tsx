@@ -5,28 +5,28 @@ import { User, Mail } from "lucide-react";
 
 const consultants = [
   {
-    name: "Laura Abhad",
-    specialty: "Psychologist",
-    email: "abhad@example.com",
-    image: "/consultant-1.jpg"
+    name: "Akoto Ankrah",
+    specialty: "Motivator",
+    email: "akotoankrah@gmail.com",
+    image: "https://i.postimg.cc/7LyCXQWB/consultant-1.jpg"
   },
   {
-    name: "Sarah Williams",
-    specialty: "Family Therapist",
-    email: "amrah@example.com",
-    image: "/consultant-2.jpg"
+    name: "Ataa Williams",
+    specialty: "Community Moderator",
+    email: "attawilliams@hotmail.com",
+    image: "https://i.postimg.cc/cCjC3D3B/consultant-2.jpg"
   },
   {
-    name: "James Parker",
-    specialty: "Psychotherapist",
-    email: "shuja@example.com",
-    image: "/consultant-3.jpg"
+    name: "Philip Appiah",
+    specialty: "Peer Supporter",
+    email: "philipappiah@gmail.com",
+    image: "https://i.postimg.cc/sf0vb2LG/consultant-3.jpg"
   },
   {
     name: "Alice Johnson",
-    specialty: "Counselor",
-    email: "zayd@example.com",
-    image: "/consultant-4.jpg"
+    specialty: "Anonymity Advocate",
+    email: "alicejohnson@yahoo.com",
+    image: "https://i.postimg.cc/NMsKv2Ym/consultant-4.jpg"
   },
 ];
 
@@ -41,7 +41,7 @@ export default function ConsultantsCarousel() {
       </div>
       <div className="relative z-10 max-w-7xl mx-auto px-4">
         <h2 className="text-3xl md:text-4xl font-bold mb-12 text-center text-gray-900 drop-shadow-lg">
-          Meet our consultant experts
+         Meet Our Motivators & Community Team
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 overflow-x-auto">
           {consultants.map((c, i) => (

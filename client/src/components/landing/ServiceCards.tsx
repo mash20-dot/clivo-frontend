@@ -6,28 +6,28 @@ import { motion } from "framer-motion";
 
 const services = [
   {
-    title: "Individual Counseling",
-    description: "Personalized support for your unique journey.",
+    title: "Anonymous Posts",
+    description: "Share your feelings, stories, and victories safely—no names, no stigma.",
     icon: <Users className="w-7 h-7 text-teal-500" />,
-    image: "/service-1.jpg",
+    image: "https://i.postimg.cc/FKZKpFcR/service-1.jpg",
   },
   {
-    title: "Couple Counseling",
-    description: "Grow together with relationship counseling.",
-    icon: <HeartHandshake className="w-7 h-7 text-pink-500" />,
-    image: "/service-2.jpg",
-  },
-  {
-    title: "Family Counseling",
-    description: "Support for families of all shapes and sizes.",
-    icon: <Home className="w-7 h-7 text-orange-500" />,
-    image: "/service-3.jpg",
-  },
-  {
-    title: "Teens Counseling",
-    description: "Specialized care for ages 13-19.",
+    title: "Daily Motivation",
+    description: "Get inspired with uplifting quotes and positive messages every day.",
     icon: <Smile className="w-7 h-7 text-indigo-500" />,
-    image: "/service-4.jpg",
+    image: "https://i.postimg.cc/ncjCxJ8R/service-2.jpg",
+  },
+  {
+    title: "Supportive Community",
+    description: "Find encouragement and connection with others who truly understand.",
+    icon: <Home className="w-7 h-7 text-orange-500" />,
+    image: "https://i.postimg.cc/mg7kcyg7/service-3.jpg",
+  },
+  {
+    title: "Emotional Support",
+    description: "Receive empathy and support from a caring, non-judgmental community.",
+    icon: <HeartHandshake className="w-7 h-7 text-pink-500" />,
+    image: "https://i.postimg.cc/7hpPh5vB/service-4.jpg",
   },
 ];
 

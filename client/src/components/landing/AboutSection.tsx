@@ -14,22 +14,22 @@ export default function AboutSection() {
         transition={{ duration: 0.7 }}
       >
         <div className="mb-8 border-l-4 border-teal-400 pl-6">
-          <h2 className="text-3xl font-bold mb-4 text-gray-900">We care for you, we write for you</h2>
+          <h2 className="text-3xl font-bold mb-4 text-gray-900">We Empower, We Support, We Motivate</h2>
           <p className="mb-6 text-gray-700 text-lg">
-            Clivo is a growing community working towards mental and emotional strength. Find motivation, connect, and seek professional help from licensed counselors.
+            Clivo is a vibrant, judgment-free community dedicated to motivation and emotional support. Find inspiration, post anonymously, and connect with others for daily encouragement and growth.
           </p>
           <ul className="mb-4 space-y-3">
             <li className="flex items-center gap-3 text-teal-700">
               <CheckCircle className="w-5 h-5 text-teal-500" />
-              Affordable sessions
+              Total anonymity & privacy
             </li>
             <li className="flex items-center gap-3 text-teal-700">
               <CheckCircle className="w-5 h-5 text-teal-500" />
-              Simple search process
+              Motivational posts & daily inspiration
             </li>
             <li className="flex items-center gap-3 text-teal-700">
               <CheckCircle className="w-5 h-5 text-teal-500" />
-              High-quality care
+              Supportive & positive community
             </li>
           </ul>
         </div>
@@ -42,7 +42,7 @@ export default function AboutSection() {
         transition={{ duration: 0.7 }}
       >
         <Image
-          src="/about-image.jpg"
+          src="https://i.postimg.cc/pLjhftqh/about-image.jpg"
           alt="Therapy chairs"
           fill
           sizes="(max-width: 768px) 80vw, 400px"

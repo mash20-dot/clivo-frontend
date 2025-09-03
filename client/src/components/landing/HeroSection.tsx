@@ -37,7 +37,7 @@ export default function HeroSection() {
           transition={{ duration: 0.8, ease: "easeOut", delay: 0.3 }}
         >
           <Image
-            src="/hero-image.jpg"
+            src="https://i.postimg.cc/wgvN2Crs/hero-image.jpg"
             alt="Mental wellness"
             fill
             sizes="(max-width: 768px) 80vw, 400px"
