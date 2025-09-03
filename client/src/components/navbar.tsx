@@ -4,6 +4,7 @@ import { signOut, useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
 import clsx from "clsx";
+import Image from "next/image";
 
 const NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard" },
@@ -47,12 +48,18 @@ export default function Navbar() {
         {/* Logo */}
         <Link
           href="/"
-          className={clsx(
-            "font-extrabold text-2xl tracking-tight transition-colors duration-300 flex-shrink-0",
-            scrolled ? "text-green-600" : "text-green-500"
-          )}
+          className="flex items-center flex-shrink-0 h-10 md:h-12"
+          onClick={() => setMobileOpen(false)}
         >
-          Clivo
+          {/* Updated logo size: smaller, fits navbar better */}
+          <Image
+            src="https://i.postimg.cc/9FyWsVzP/clivo-png-1.png"
+            alt="Clivo Logo"
+            width={90}
+            height={32}
+            className="object-contain h-8 w-auto md:h-10"
+            priority
+          />
         </Link>
 
         {/* Desktop Nav */}
@@ -65,7 +72,7 @@ export default function Navbar() {
                 className={clsx(
                   "px-4 py-2 rounded-md font-medium transition-all duration-200",
                   scrolled ? "text-black" : "text-white",
-                  "hover:bg-green-500 hover:text-white"
+                  "hover:bg-teal-700 hover:text-white"
                 )}
               >
                 {label}
@@ -79,7 +86,7 @@ export default function Navbar() {
           {isAuthed ? (
             <button
               onClick={() => signOut()}
-              className="px-4 py-2 rounded-md transition-all font-semibold text-gray-600 bg-white border border-green-500 hover:bg-green-500 hover:text-white hover:border-green-600"
+              className="px-4 py-2 rounded-md transition-all font-semibold text-gray-600 bg-white border border-teal-600 hover:bg-teal-700 hover:text-white hover:border-green-600"
             >
               Logout
             </button>
@@ -87,13 +94,13 @@ export default function Navbar() {
             <>
               <Link
                 href="/auth/login"
-                className="px-4 py-2 rounded-md transition-all font-semibold text-gray-600 bg-white border border-green-500 hover:bg-green-500 hover:text-white hover:border-green-600"
+                className="px-4 py-2 rounded-md transition-all font-semibold text-gray-600 bg-white border border-teal-600 hover:bg-teal-700 hover:text-white hover:border-green-600"
               >
                 Login
               </Link>
               <Link
                 href="/auth/signup"
-                className="px-4 py-2 rounded-md transition-all font-semibold text-white bg-green-500 border border-green-500 hover:bg-white hover:text-green-600"
+                className="px-4 py-2 rounded-md transition-all font-semibold text-white bg-teal-700 border border-teal-600 hover:bg-white hover:text-teal-600"
               >
                 Sign up
               </Link>
@@ -113,7 +120,7 @@ export default function Navbar() {
               mobileOpen ? "scale-90 opacity-0 rotate-45 absolute" : "scale-100 opacity-100"
             )}
           >
-            <Menu className="w-7 h-7 text-green-600" />
+            <Menu className="w-7 h-7 text-teal-600" />
           </span>
           <span
             className={clsx(
@@ -121,7 +128,7 @@ export default function Navbar() {
               mobileOpen ? "scale-100 opacity-100" : "scale-90 opacity-0"
             )}
           >
-            <X className="w-7 h-7 text-green-600" />
+            <X className="w-7 h-7 text-teal-600" />
           </span>
         </button>
 
@@ -147,23 +154,30 @@ export default function Navbar() {
             aria-label="Mobile menu"
           >
             <div className={clsx(
-              "flex items-center justify-between px-6 h-[64px] border-b",
+              "flex items-center justify-between px-6 h-[56px] border-b",
               "transition-all duration-300",
               mobileOpen ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-8"
             )}>
               <Link
                 href="/"
-                className="font-extrabold text-2xl tracking-tight text-green-600"
+                className="flex items-center flex-shrink-0 h-10"
                 onClick={() => setMobileOpen(false)}
               >
-                Clivo
+                <Image
+                  src="https://i.postimg.cc/9FyWsVzP/clivo-png-1.png"
+                  alt="Clivo Logo"
+                  width={90}
+                  height={32}
+                  className="object-contain h-8 w-auto md:h-10"
+                  priority
+                />
               </Link>
               <button
-                className="p-2 rounded focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="p-2 rounded focus:outline-none focus:ring-2 focus:ring-teal-500"
                 aria-label="Close menu"
                 onClick={() => setMobileOpen(false)}
               >
-                <X className="w-7 h-7 text-green-600" />
+                <X className="w-7 h-7 text-teal-600" />
               </button>
             </div>
             <div className={clsx(
@@ -174,7 +188,7 @@ export default function Navbar() {
                 <Link
                   key={href}
                   href={href}
-                  className="block px-4 py-3 rounded-md text-green-600 font-semibold text-lg transition hover:bg-green-50 hover:text-green-700"
+                  className="block px-4 py-3 rounded-md text-teal-600 font-semibold text-lg transition hover:bg-green-50 hover:text-teal-700"
                   onClick={() => setMobileOpen(false)}
                 >
                   {label}
@@ -191,7 +205,7 @@ export default function Navbar() {
                     signOut();
                     setMobileOpen(false);
                   }}
-                  className="w-full px-4 py-3 rounded-md transition-all font-semibold text-green-600 bg-white border border-green-500 hover:bg-green-500 hover:text-white hover:border-green-600"
+                  className="w-full px-4 py-3 rounded-md transition-all font-semibold text-teal-600 bg-white border border-teal-500 hover:bg-teal-500 hover:text-white hover:border-teal-600"
                 >
                   Logout
                 </button>
@@ -199,14 +213,14 @@ export default function Navbar() {
                 <>
                   <Link
                     href="/auth/login"
-                    className="w-full px-4 py-3 rounded-md transition-all font-semibold text-green-600 bg-white border border-green-500 hover:bg-green-500 hover:text-white hover:border-green-600 text-center"
+                    className="w-full px-4 py-3 rounded-md transition-all font-semibold text-teal-600 bg-white border border-teal-500 hover:bg-teal-500 hover:text-white hover:border-teal-600 text-center"
                     onClick={() => setMobileOpen(false)}
                   >
                     Login
                   </Link>
                   <Link
                     href="/auth/signup"
-                    className="w-full px-4 py-3 rounded-md transition-all font-semibold text-white bg-green-500 border border-green-500 hover:bg-white hover:text-green-600 text-center"
+                    className="w-full px-4 py-3 rounded-md transition-all font-semibold text-white bg-teal-500 border border-teal-500 hover:bg-white hover:text-teal-600 text-center"
                     onClick={() => setMobileOpen(false)}
                   >
                     Sign up
