@@ -71,7 +71,7 @@ type Person = User | Counselor;
 const dummyUser: User = {
   name: "Esther Johnson",
   role: "User",
-  avatar: "https://randomuser.me/api/portraits/women/90.jpg",
+  avatar: "https://i.postimg.cc/sgt6J1gK/profile-image.jpg",
   wellnessScore: 3.95,
   moodScore: 3.15,
   moodTrends: [
@@ -97,7 +97,7 @@ const dummyUser: User = {
 const dummyCounselor: Counselor = {
   name: "Dr. John Smith",
   role: "Counselor",
-  avatar: "https://randomuser.me/api/portraits/men/43.jpg",
+  avatar: "https://i.postimg.cc/sgt6J1gK/profile-image.jpg",
   clientsHelped: 82,
   sessionsThisWeek: 12,
   avgClientScore: 4.3,
