@@ -11,7 +11,6 @@ const NAV_LINKS = [
   { href: "/posts", label: "Posts" },
   { href: "/quotes", label: "Quotes" },
   { href: "/counselors", label: "Counselors" },
-  { href: "/settings", label: "Settings" },
 ];
 
 export default function Navbar() {
