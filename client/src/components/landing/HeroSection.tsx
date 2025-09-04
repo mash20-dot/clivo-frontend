@@ -22,7 +22,7 @@ export default function HeroSection() {
             Motivation, community, and professional support at your fingertips.
           </p>
           <div className="flex gap-4">
-            <Link href="/auth/signup" className="bg-teal-600 hover:bg-teal-700 transition text-white font-semibold py-3 px-8 rounded-xl shadow-md">
+            <Link href="/get-started-choice" className="bg-teal-600 hover:bg-teal-700 transition text-white font-semibold py-3 px-8 rounded-xl shadow-md">
               Get Started
             </Link>
             <Link href="/auth/login" className="bg-white border border-teal-600 text-teal-700 font-semibold py-3 px-8 rounded-xl shadow-md hover:bg-teal-50">
