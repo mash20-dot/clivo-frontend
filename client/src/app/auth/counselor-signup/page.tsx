@@ -4,7 +4,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { User, Mail, MapPin, BadgeCheck } from "lucide-react";
 import { motion } from "framer-motion";
-import Footer from "@/components/landing/Footer";
 
 export default function CounselorSignupPage() {
   const [form, setForm] = useState({
