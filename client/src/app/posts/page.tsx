@@ -1,168 +1,326 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { MessageCircle, Heart, Repeat2, Share2, Smile, Image as ImageIcon, FileText, Bold, Italic } from "lucide-react";
 import Footer from "@/components/landing/Footer";
 
+// App's primary teal color
+const tealColor = "#14b8a6";
+
+// Dummy user (simulate signed in/out)
+const currentUser = {
+  name: "Clivo User",
+  avatar: "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?auto=format&fit=crop&w=80&q=80"
+};
+
+// Mental health themed dummy posts
 const dummyPosts = [
   {
     id: "1",
-    title: "Overcoming Anxiety: Steps That Worked For Me",
-    description: "Discover techniques and daily habits that helped me conquer anxiety and regain my confidence.",
-    author: { name: "Sarah Ahmed" },
-    date: "September 1, 2025",
-    image: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=600&q=80",
-    tag: "Mental Health",
+    author: { name: "Sarah Ahmed", avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=80&q=80" },
+    createdAt: "Just now",
+    content: "✨ Just wanted to say: It’s okay to ask for help. You matter. Today I reached out to a counselor on Clivo and it felt *so* good to talk.",
+    image: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=600&q=80",
+    comments: [
+      { id: "c1", name: "James Williams", avatar: "https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=80&q=80", text: "Proud of you Sarah! 💚", time: "2m" }
+    ],
+    likes: 87,
+    shares: 14,
+    reposts: 4,
   },
   {
     id: "2",
-    title: "Finding Motivation in Tough Times",
-    description: "My favorite affirmations and tips for rediscovering hope and joy every day.",
-    author: { name: "James Williams" },
-    date: "August 25, 2025",
-    image: "https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=600&q=80",
-    tag: "Motivation",
+    author: { name: "Emily Carter", avatar: "https://images.unsplash.com/photo-1464983953574-0892a716854b?auto=format&fit=crop&w=80&q=80" },
+    createdAt: "8m",
+    content: "Taking time for self-care is not selfish. I meditated for 10 minutes today and my anxiety went down a lot.",
+    image: "",
+    comments: [
+      { id: "c2", name: "Helen Johnson", avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=80&q=80", text: "Thanks for sharing, Emily! Mindfulness helps me too.", time: "3m" }
+    ],
+    likes: 45,
+    shares: 9,
+    reposts: 1,
   },
   {
     id: "3",
-    title: "The Power of Community Support",
-    description: "How our community helped me feel seen, heard, and empowered.",
-    author: { name: "Helen Johnson" },
-    date: "August 10, 2025",
-    image: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=600&q=80",
-    tag: "Community",
+    author: { name: "Michael Brown", avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=80&q=80" },
+    createdAt: "15m",
+    content: "My therapist taught me about grounding techniques for panic attacks. Counting things in my room really helps.",
+    image: "",
+    comments: [],
+    likes: 21,
+    shares: 3,
+    reposts: 0,
   },
   {
     id: "4",
-    title: "Self-Care Rituals for a Happier Life",
-    description: "Explore easy self-care practices that boost your mental well-being.",
-    author: { name: "David O'Neal" },
-    date: "July 30, 2025",
+    author: { name: "Lisa Green", avatar: "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?auto=format&fit=crop&w=80&q=80" },
+    createdAt: "30m",
+    content: "Just finished a gratitude journal entry. Focusing on positives helps me reframe my day.",
     image: "https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=crop&w=600&q=80",
-    tag: "Self Care",
+    comments: [
+      { id: "c4", name: "Sarah Ahmed", avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=80&q=80", text: "Love this idea!", time: "12m" }
+    ],
+    likes: 32,
+    shares: 5,
+    reposts: 2,
   },
   {
     id: "5",
-    title: "Dealing With Stress at Work",
-    description: "My strategies for managing stress and staying productive.",
-    author: { name: "Emily Carter" },
-    date: "July 15, 2025",
-    image: "https://images.unsplash.com/photo-1464983953574-0892a716854b?auto=format&fit=crop&w=600&q=80",
-    tag: "Stress",
-  },
-  {
-    id: "6",
-    title: "How Gratitude Changed My Perspective",
-    description: "Simple gratitude journaling practices that transformed my mindset.",
-    author: { name: "Michael Brown" },
-    date: "June 29, 2025",
-    image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=600&q=80",
-    tag: "Gratitude",
-  },
-  {
-    id: "7",
-    title: "Building Confidence Step by Step",
-    description: "Actionable ways to grow self-confidence and self-worth.",
-    author: { name: "Lisa Green" },
-    date: "June 10, 2025",
-    image: "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?auto=format&fit=crop&w=600&q=80",
-    tag: "Confidence",
-  },
-  {
-    id: "8",
-    title: "Mindfulness for Beginners",
-    description: "How mindfulness brought peace to my everyday life.",
-    author: { name: "Chris Lee" },
-    date: "May 25, 2025",
-    image: "https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?auto=format&fit=crop&w=600&q=80",
-    tag: "Mindfulness",
-  },
-  {
-    id: "9",
-    title: "Healing After Loss",
-    description: "My journey through grief and what helped me heal.",
-    author: { name: "Sophia Turner" },
-    date: "May 10, 2025",
-    image: "https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?auto=format&fit=crop&w=600&q=80",
-    tag: "Healing",
-  },
-  {
-    id: "10",
-    title: "Small Wins, Big Changes",
-    description: "Celebrating progress to stay motivated every day.",
-    author: { name: "Robert Smith" },
-    date: "April 30, 2025",
-    image: "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=600&q=80",
-    tag: "Growth",
+    author: { name: "Chris Lee", avatar: "https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?auto=format&fit=crop&w=80&q=80" },
+    createdAt: "1h",
+    content: "If you’re struggling today, remember: You are not alone. Clivo community is here for you. 💚",
+    image: "",
+    comments: [],
+    likes: 19,
+    shares: 2,
+    reposts: 0,
   },
 ];
 
-const fadeUp = {
-  hidden: { opacity: 0, y: 24 },
-  visible: { opacity: 1, y: 0 },
-};
+export default function PostsFeedPage() {
+  // Simulate not logged-in for comment, post
+  const isLoggedIn = false;
+  const [composer, setComposer] = useState("");
+  const [showComment, setShowComment] = useState<string | null>(null);
+  const [commentText, setCommentText] = useState("");
+  const [promptAuth, setPromptAuth] = useState(false);
 
-export default function PostsPage() {
+  function handlePostSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!isLoggedIn) {
+      setPromptAuth(true);
+      return;
+    }
+    setComposer("");
+    // Add post logic here when backend is ready
+  }
+
+  function handleCommentSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!isLoggedIn) {
+      setPromptAuth(true);
+      return;
+    }
+    setCommentText("");
+    setShowComment(null);
+    // Add comment logic here when backend is ready
+  }
+
   return (
-    <main className="bg-gradient-to-br from-teal-50 via-white to-blue-50 min-h-screen flex flex-col">
-      <section className="max-w-7xl mx-auto px-4 py-10 flex-1">
-        <motion.h1
-          className="text-4xl font-extrabold text-center text-teal-700 mb-3"
+    <main className="min-h-screen bg-gradient-to-b from-teal-50 via-white to-blue-50 flex flex-col">
+      <section className="max-w-2xl w-full mx-auto flex-1 py-8 px-2 sm:px-0">
+        {/* Post composer */}
+        <motion.div
+          className="bg-white rounded-3xl shadow-lg border border-teal-100 mb-6 p-6"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
+          transition={{ duration: 0.5 }}
         >
-          Community Inspiration
-        </motion.h1>
-        <p className="text-center text-gray-500 mb-10 text-lg">
-          Discover uplifting stories, practical tips, and encouragement from our community. Be inspired, feel empowered!
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-          {dummyPosts.map((post, i) => (
+          <form onSubmit={handlePostSubmit}>
+            <div className="flex items-start gap-4">
+              <Image
+                src={currentUser.avatar}
+                alt={currentUser.name}
+                width={48}
+                height={48}
+                className="rounded-full object-cover border-2 border-teal-200"
+              />
+              <div className="w-full">
+                <textarea
+                  rows={2}
+                  className="w-full resize-none bg-transparent focus:outline-none text-lg placeholder:text-gray-400 font-medium"
+                  placeholder="Share your story or thought for today..."
+                  value={composer}
+                  onChange={e => setComposer(e.target.value)}
+                  disabled={!isLoggedIn}
+                />
+                <div className="flex items-center gap-3 mt-4">
+                  <button type="button" className="p-2 rounded hover:bg-teal-50 transition" tabIndex={-1} title="Add image"><ImageIcon className="w-5 h-5" color={tealColor} /></button>
+                  <button type="button" className="p-2 rounded hover:bg-teal-50 transition" tabIndex={-1} title="Add emoji"><Smile className="w-5 h-5" color={tealColor} /></button>
+                  <button type="button" className="p-2 rounded hover:bg-teal-50 transition" tabIndex={-1} title="Attach file"><FileText className="w-5 h-5" color={tealColor} /></button>
+                  <button type="button" className="p-2 rounded hover:bg-teal-50 transition" tabIndex={-1} title="Bold"><Bold className="w-5 h-5" color={tealColor} /></button>
+                  <button type="button" className="p-2 rounded hover:bg-teal-50 transition" tabIndex={-1} title="Italic"><Italic className="w-5 h-5" color={tealColor} /></button>
+                  <button
+                    type="submit"
+                    className="ml-auto bg-teal-600 hover:bg-teal-700 text-white font-semibold px-7 py-2 rounded-full shadow transition"
+                  >
+                    Post
+                  </button>
+                </div>
+              </div>
+            </div>
+          </form>
+        </motion.div>
+        {/* Feed */}
+        <div className="flex flex-col gap-7">
+          {dummyPosts.map(post => (
             <motion.div
               key={post.id}
-              variants={fadeUp}
-              initial="hidden"
-              animate="visible"
-              transition={{ duration: 0.6, delay: i * 0.1 }}
-              className="group bg-white rounded-2xl shadow-xl hover:shadow-2xl transition-all border border-teal-100 overflow-hidden flex flex-col"
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="bg-white rounded-3xl shadow-lg border border-teal-100 p-6"
             >
-              <Link href={`/posts/${post.id}`}>
-                <div className="cursor-pointer">
-                  <div className="relative w-full h-56">
-                    <Image
-                      src={post.image}
-                      alt={post.title}
-                      width={600}
-                      height={320}
-                      className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500"
-                      style={{ borderBottomLeftRadius: "1rem", borderBottomRightRadius: "1rem" }}
-                    />
-                    <span className="absolute top-4 left-4 bg-teal-600/90 text-white text-xs font-semibold px-3 py-1 rounded-full shadow">
-                      {post.tag}
-                    </span>
+              <div className="flex gap-4 items-start">
+                <Image
+                  src={post.author.avatar}
+                  alt={post.author.name}
+                  width={48}
+                  height={48}
+                  className="rounded-full object-cover border-2 border-teal-200"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-bold text-teal-700">{post.author.name}</span>
+                    <span className="text-xs text-gray-400 font-semibold">{post.createdAt}</span>
                   </div>
-                  <div className="p-6 flex flex-col justify-between min-h-[180px]">
-                    <h2 className="text-2xl font-bold text-teal-700 group-hover:text-teal-800 mb-2">
-                      {post.title}
-                    </h2>
-                    <p className="text-gray-600 mb-5">{post.description}</p>
-                    <div className="flex items-center justify-between mt-auto">
-                      <div className="flex flex-col">
-                        <span className="text-sm font-medium text-teal-600">{post.author.name}</span>
-                        <span className="text-xs text-gray-400">{post.date}</span>
-                      </div>
-                      <span className="text-xs text-teal-500 font-semibold bg-teal-50 px-2 py-1 rounded-lg shadow">
-                        Read More →
-                      </span>
+                  <p className="text-base text-gray-700 mb-3 whitespace-pre-line font-medium">{post.content}</p>
+                  {post.image && (
+                    <div className="rounded-xl overflow-hidden border border-teal-100 mb-4">
+                      <Image
+                        src={post.image}
+                        alt="Post"
+                        width={600}
+                        height={320}
+                        className="object-cover w-full"
+                      />
                     </div>
+                  )}
+                  {/* Actions */}
+                  <div className="flex items-center gap-6 text-teal-500 mt-2">
+                    <button
+                      className="flex items-center gap-1 hover:bg-teal-50 p-2 rounded transition font-semibold"
+                      onClick={() => setShowComment(post.id)}
+                      aria-label="Comment"
+                      title="Comment"
+                    >
+                      <MessageCircle className="w-5 h-5" color={tealColor} />
+                      <span className="text-xs">{post.comments.length}</span>
+                    </button>
+                    <button className="flex items-center gap-1 hover:bg-teal-50 p-2 rounded transition font-semibold" tabIndex={-1} title="Repost">
+                      <Repeat2 className="w-5 h-5" color={tealColor} />
+                      <span className="text-xs">{post.reposts}</span>
+                    </button>
+                    <button className="flex items-center gap-1 hover:bg-teal-50 p-2 rounded transition font-semibold" tabIndex={-1} title="Like">
+                      <Heart className="w-5 h-5" color={tealColor} />
+                      <span className="text-xs">{post.likes}</span>
+                    </button>
+                    <button className="flex items-center gap-1 hover:bg-teal-50 p-2 rounded transition font-semibold" tabIndex={-1} title="Share">
+                      <Share2 className="w-5 h-5" color={tealColor} />
+                      <span className="text-xs">{post.shares}</span>
+                    </button>
                   </div>
+                  {/* Comments Feed */}
+                  <div className="mt-5">
+                    {post.comments.length > 0 && (
+                      <div className="flex flex-col gap-3">
+                        {post.comments.map(comment => (
+                          <div key={comment.id} className="flex items-center gap-2 bg-teal-50 rounded-lg px-3 py-2">
+                            <Image
+                              src={comment.avatar}
+                              alt={comment.name}
+                              width={28}
+                              height={28}
+                              className="rounded-full object-cover border border-teal-200"
+                            />
+                            <span className="text-xs font-semibold text-teal-700">{comment.name}</span>
+                            <span className="text-xs text-gray-400">{comment.time}</span>
+                            <p className="text-xs text-gray-600 ml-2">{comment.text}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {/* Comment Section Modal */}
+                  <AnimatePresence>
+                    {showComment === post.id && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 30 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 30 }}
+                        className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center"
+                      >
+                        <div className="bg-white rounded-2xl p-7 max-w-sm w-full shadow-2xl border border-teal-100">
+                          <h3 className="text-lg font-bold mb-3 text-teal-700">Add a comment</h3>
+                          <form onSubmit={handleCommentSubmit} className="flex flex-col gap-3">
+                            <textarea
+                              rows={2}
+                              className="w-full border rounded-lg px-3 py-2 text-sm shadow focus:outline-teal-500 resize-none"
+                              placeholder="Write your comment..."
+                              value={commentText}
+                              onChange={e => setCommentText(e.target.value)}
+                            />
+                            <div className="flex gap-2">
+                              <button
+                                type="submit"
+                                className="bg-teal-600 text-white px-4 py-2 rounded-full font-semibold hover:bg-teal-700 transition"
+                              >
+                                Send
+                              </button>
+                              <button
+                                type="button"
+                                className="bg-gray-100 text-gray-700 px-4 py-2 rounded-full font-semibold hover:bg-gray-200 transition"
+                                onClick={() => { setShowComment(null); setCommentText(""); }}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </form>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
-              </Link>
+              </div>
             </motion.div>
           ))}
         </div>
+        {/* Auth Modal */}
+        <AnimatePresence>
+          {promptAuth && (
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 30 }}
+              className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center"
+            >
+              <div className="bg-white rounded-xl shadow-lg p-6 text-center max-w-xs mx-auto border border-teal-100">
+                <h3 className="text-lg font-semibold mb-2 text-teal-700">
+                  Sign in or Sign up
+                </h3>
+                <p className="mb-4 text-gray-500 text-sm">
+                  You must be signed in to post or comment.
+                </p>
+                <div className="flex flex-col gap-2">
+                  <Link
+                    href="/auth/login"
+                    className="bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 font-semibold transition"
+                    onClick={() => setPromptAuth(false)}
+                  >
+                    Sign In
+                  </Link>
+                  <Link
+                    href="/auth/signup"
+                    className="bg-white text-teal-700 border border-teal-600 px-4 py-2 rounded-lg hover:bg-teal-50 font-semibold transition"
+                    onClick={() => setPromptAuth(false)}
+                  >
+                    Sign Up
+                  </Link>
+                  <button
+                    className="mt-2 text-xs text-gray-400 underline"
+                    onClick={() => setPromptAuth(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </section>
       <Footer />
     </main>
