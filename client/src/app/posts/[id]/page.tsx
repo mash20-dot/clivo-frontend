@@ -76,7 +76,6 @@ const dummyPosts = [
   },
 ];
 
-// Extract id from the URL (in real Next.js file-based routing, use params)
 function getPostById(id: string) {
   return dummyPosts.find((post) => post.id === id);
 }
