@@ -86,7 +86,7 @@ const fadeUp = {
   visible: { opacity: 1, y: 0 },
 };
 
-export default function SinglePostPage({ params }: { params: { id: string } }) {
+export default function Page({ params }: { params: { id: string } }) {
   const post = getPostById(params.id);
   const [comment, setComment] = useState("");
   const [comments, setComments] = useState<
