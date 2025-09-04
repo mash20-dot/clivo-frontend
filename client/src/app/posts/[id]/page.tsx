@@ -74,6 +74,7 @@ const dummyPosts = [
       },
     ],
   },
+  // Add more dummy posts if needed...
 ];
 
 function getPostById(id: string) {
@@ -142,8 +143,8 @@ export default function Page({ params }: { params: { id: string } }) {
   }
 
   return (
-    <main className="bg-gradient-to-br from-teal-50 via-white to-blue-50 min-h-screen">
-      <section className="max-w-3xl mx-auto px-4 py-10">
+    <main className="bg-gradient-to-br from-teal-50 via-white to-blue-50 min-h-screen flex flex-col">
+      <section className="max-w-3xl mx-auto px-4 py-10 flex-1">
         <Link
           href="/posts"
           className="text-teal-600 text-sm underline mb-6 inline-block"
