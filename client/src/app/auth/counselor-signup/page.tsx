@@ -10,20 +10,30 @@ import {
   Lock,
   EyeOff,
   Eye,
+  Loader2,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import toast from "react-hot-toast";
+import { useRouter } from "next/navigation";
+import { useSignupCounselor } from "@/lib/mutations";
+import { useAuth } from "@/lib/UserContext";
 
 export default function CounselorSignupPage() {
   const [form, setForm] = useState({
-    fullName: "",
+    fullname: "",
     email: "",
     password: "",
+    confirm_password: "",
     location: "",
-    licenseNumber: "",
+    license_number: "",
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+
+  const router = useRouter();
+  const mutation = useSignupCounselor();
+  const { setUser } = useAuth();
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -31,9 +41,60 @@ export default function CounselorSignupPage() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSubmitted(true);
-    // Submit logic goes here!
+
+    if (form.password.trim() !== form.confirm_password.trim()) {
+      toast.error("Passwords do not match.");
+      return;
+    }
+
+    mutation.mutate(
+      {
+        fullname: form.fullname.trim(),
+        email: form.email.trim(),
+        password: form.password,
+        confirm_password: form.confirm_password,
+        location: form.location.trim(),
+        license_number: form.license_number.trim(),
+      },
+      {
+        onSuccess: (data) => {
+          if (data.access_token) {
+            setUser({
+              access_token: data.access_token,
+              email: form.email,
+              username: data.username,
+              role: "counselor",
+            });
+          }
+          setSubmitted(true);
+          toast.success(
+            "Thanks for signing up as a counselor! We will review your info."
+          );
+          router.push("/dashboard");
+        },
+        onError: (err: unknown) => {
+          let message = "Could not create account. Please try again.";
+          if (err && typeof err === "object" && "response" in err) {
+            const errorObj = err as {
+              response?: { data?: { message?: string } };
+            };
+            if (errorObj.response?.data?.message) {
+              message = errorObj.response.data.message;
+            }
+          }
+          toast.error(message);
+        },
+      }
+    );
   }
+
+  const isFormValid =
+    form.fullname.trim() &&
+    form.email.trim() &&
+    form.password.trim() &&
+    form.confirm_password.trim() &&
+    form.location.trim() &&
+    form.license_number.trim();
 
   return (
     <main className="min-h-screen w-full flex flex-col justify-between bg-gradient-to-br from-teal-100 via-white to-blue-100 py-8 px-4">
@@ -74,13 +135,14 @@ export default function CounselorSignupPage() {
               <div className="relative">
                 <input
                   type="text"
-                  name="fullName"
-                  value={form.fullName}
+                  name="fullname"
+                  value={form.fullname}
                   onChange={handleChange}
                   placeholder="Your Name"
                   className="w-full rounded-lg border border-teal-200 bg-white/60 py-3 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-green-500 transition shadow-sm"
                   required
                   autoComplete="name"
+                  disabled={mutation.isPending}
                 />
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-teal-400" />
               </div>
@@ -97,6 +159,7 @@ export default function CounselorSignupPage() {
                   className="w-full rounded-lg border border-teal-200 bg-white/60 py-3 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-green-500 transition shadow-sm"
                   required
                   autoComplete="email"
+                  disabled={mutation.isPending}
                 />
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-teal-400" />
               </div>
@@ -106,10 +169,14 @@ export default function CounselorSignupPage() {
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
+                  name="password"
+                  value={form.password}
+                  onChange={handleChange}
                   placeholder="Password"
                   className="w-full rounded-lg border border-teal-200 bg-white/60 py-3 pl-10 pr-10 focus:outline-none focus:ring-2 focus:ring-green-500 transition shadow-sm"
                   required
                   autoComplete="new-password"
+                  disabled={mutation.isPending}
                 />
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-teal-400" />
                 <button
@@ -118,6 +185,7 @@ export default function CounselorSignupPage() {
                   aria-label="Toggle password visibility"
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-teal-500"
                   onClick={() => setShowPassword((v) => !v)}
+                  disabled={mutation.isPending}
                 >
                   {showPassword ? (
                     <EyeOff className="w-5 h-5" />
@@ -127,16 +195,19 @@ export default function CounselorSignupPage() {
                 </button>
               </div>
             </label>
-
             <label className="flex flex-col gap-1 text-sm font-medium text-gray-700">
               Confirm Password
               <div className="relative">
                 <input
                   type={showConfirm ? "text" : "password"}
+                  name="confirm_password"
+                  value={form.confirm_password}
+                  onChange={handleChange}
                   placeholder="Confirm Password"
                   className="w-full rounded-lg border border-teal-200 bg-white/60 py-3 pl-10 pr-10 focus:outline-none focus:ring-2 focus:ring-green-500 transition shadow-sm"
                   required
                   autoComplete="new-password"
+                  disabled={mutation.isPending}
                 />
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-teal-400" />
                 <button
@@ -145,6 +216,7 @@ export default function CounselorSignupPage() {
                   aria-label="Toggle password visibility"
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-teal-500"
                   onClick={() => setShowConfirm((v) => !v)}
+                  disabled={mutation.isPending}
                 >
                   {showConfirm ? (
                     <EyeOff className="w-5 h-5" />
@@ -166,6 +238,7 @@ export default function CounselorSignupPage() {
                   className="w-full rounded-lg border border-teal-200 bg-white/60 py-3 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-green-500 transition shadow-sm"
                   required
                   autoComplete="address-level2"
+                  disabled={mutation.isPending}
                 />
                 <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-teal-400" />
               </div>
@@ -175,21 +248,26 @@ export default function CounselorSignupPage() {
               <div className="relative">
                 <input
                   type="text"
-                  name="licenseNumber"
-                  value={form.licenseNumber}
+                  name="license_number"
+                  value={form.license_number}
                   onChange={handleChange}
                   placeholder="License number"
                   className="w-full rounded-lg border border-teal-200 bg-white/60 py-3 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-green-500 transition shadow-sm"
                   required
                   autoComplete="off"
+                  disabled={mutation.isPending}
                 />
                 <BadgeCheck className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-teal-400" />
               </div>
             </label>
             <button
               type="submit"
-              className="w-full mt-4 bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg shadow-lg transition"
+              className="w-full mt-4 bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg shadow-lg transition flex items-center justify-center gap-2"
+              disabled={mutation.isPending || !isFormValid}
             >
+              {mutation.isPending ? (
+                <Loader2 className="animate-spin w-5 h-5" />
+              ) : null}
               Sign Up
             </button>
           </form>

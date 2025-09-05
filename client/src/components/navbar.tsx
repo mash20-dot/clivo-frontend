@@ -1,11 +1,20 @@
 "use client";
 import Link from "next/link";
-import { signOut, useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
-import { Menu, X } from "lucide-react";
+import { useEffect, useState, useRef } from "react";
+import { Menu, X, ChevronDown, User as UserIcon } from "lucide-react";
 import clsx from "clsx";
 import Image from "next/image";
+import { useAuth } from "@/lib/UserContext";
 
+// Helper for avatar initial
+function getInitial(
+  user: { username?: string; firstname?: string; email?: string } | null
+): string {
+  if (user?.username) return user.username[0]?.toUpperCase();
+  if (user?.firstname) return user.firstname[0]?.toUpperCase();
+  if (user?.email) return user.email[0]?.toUpperCase();
+  return "U";
+}
 const NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/posts", label: "Posts" },
@@ -14,12 +23,16 @@ const NAV_LINKS = [
 ];
 
 export default function Navbar() {
-  const { data: session } = useSession();
-  const isAuthed = !!session?.user;
+  const { user, logout } = useAuth();
+  const isAuthed = !!user;
 
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
+
+  // Profile dropdown state
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
@@ -38,11 +51,67 @@ export default function Navbar() {
     }
   }, [mobileOpen]);
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setShowDropdown(false);
+      }
+    }
+    if (showDropdown) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [showDropdown]);
+
+  // Avatar with dropdown
+  const AvatarSection = (
+    <div className="relative flex items-center gap-2" ref={dropdownRef}>
+      <button
+        className="flex items-center gap-2 focus:outline-none"
+        onClick={() => setShowDropdown((v) => !v)}
+        aria-label="Open profile menu"
+      >
+        <div className="bg-teal-700 text-white rounded-full w-9 h-9 flex items-center justify-center font-bold text-lg shadow">
+          {getInitial(user)}
+        </div>
+        <ChevronDown className="text-teal-700 w-4 h-4" />
+      </button>
+      {showDropdown && (
+        <div className="absolute right-0 top-full mt-2 bg-white rounded-lg shadow-lg border border-gray-200 z-50 min-w-[160px]">
+          <Link
+            href="/profile" // you can change this later!
+            className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-teal-50 transition-colors"
+            onClick={() => setShowDropdown(false)}
+          >
+            <UserIcon className="w-4 h-4" />
+            Profile
+          </Link>
+          <button
+            onClick={() => {
+              logout();
+              setShowDropdown(false);
+            }}
+            className="w-full text-left px-4 py-3 text-teal-700 font-semibold hover:bg-teal-50 transition-colors"
+          >
+            Logout
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
   return (
-    <header className={clsx(
-      "sticky top-0 z-40 border-b transition-colors duration-300 backdrop-blur",
-      scrolled ? "bg-white/90" : "bg-white/60"
-    )}>
+    <header
+      className={clsx(
+        "sticky top-0 z-40 border-b transition-colors duration-300 backdrop-blur",
+        scrolled ? "bg-white/90" : "bg-white/60"
+      )}
+    >
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2 md:py-4 relative">
         {/* Logo */}
         <Link
@@ -50,7 +119,6 @@ export default function Navbar() {
           className="flex items-center flex-shrink-0 h-10 md:h-12"
           onClick={() => setMobileOpen(false)}
         >
-          {/* Updated logo size: smaller, fits navbar better */}
           <Image
             src="https://i.postimg.cc/9FyWsVzP/clivo-png-1.png"
             alt="Clivo Logo"
@@ -80,15 +148,10 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* Desktop Auth Buttons */}
-        <div className="hidden md:flex gap-2">
+        {/* Desktop Auth Buttons or Avatar */}
+        <div className="hidden md:flex gap-2 items-center">
           {isAuthed ? (
-            <button
-              onClick={() => signOut()}
-              className="px-4 py-2 rounded-md transition-all font-semibold text-gray-600 bg-white border border-teal-600 hover:bg-teal-700 hover:text-white hover:border-green-600"
-            >
-              Logout
-            </button>
+            AvatarSection
           ) : (
             <>
               <Link
@@ -116,7 +179,9 @@ export default function Navbar() {
           <span
             className={clsx(
               "transition-transform duration-300",
-              mobileOpen ? "scale-90 opacity-0 rotate-45 absolute" : "scale-100 opacity-100"
+              mobileOpen
+                ? "scale-90 opacity-0 rotate-45 absolute"
+                : "scale-100 opacity-100"
             )}
           >
             <Menu className="w-7 h-7 text-teal-600" />
@@ -135,7 +200,9 @@ export default function Navbar() {
         <div
           className={clsx(
             "fixed inset-0 z-40 transition-opacity duration-300 md:hidden",
-            mobileOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+            mobileOpen
+              ? "opacity-100 pointer-events-auto"
+              : "opacity-0 pointer-events-none"
           )}
           style={{
             background: mobileOpen ? "white" : "transparent",
@@ -152,11 +219,15 @@ export default function Navbar() {
             )}
             aria-label="Mobile menu"
           >
-            <div className={clsx(
-              "flex items-center justify-between px-6 h-[56px] border-b",
-              "transition-all duration-300",
-              mobileOpen ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-8"
-            )}>
+            <div
+              className={clsx(
+                "flex items-center justify-between px-6 h-[56px] border-b",
+                "transition-all duration-300",
+                mobileOpen
+                  ? "opacity-100 translate-y-0"
+                  : "opacity-0 -translate-y-8"
+              )}
+            >
               <Link
                 href="/"
                 className="flex items-center flex-shrink-0 h-10"
@@ -179,10 +250,14 @@ export default function Navbar() {
                 <X className="w-7 h-7 text-teal-600" />
               </button>
             </div>
-            <div className={clsx(
-              "flex flex-col gap-2 px-6 py-6 flex-1 bg-white transition-all duration-300 delay-100",
-              mobileOpen ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-8"
-            )}>
+            <div
+              className={clsx(
+                "flex flex-col gap-2 px-6 py-6 flex-1 bg-white transition-all duration-300 delay-100",
+                mobileOpen
+                  ? "opacity-100 translate-y-0"
+                  : "opacity-0 -translate-y-8"
+              )}
+            >
               {NAV_LINKS.map(({ href, label }) => (
                 <Link
                   key={href}
@@ -194,20 +269,29 @@ export default function Navbar() {
                 </Link>
               ))}
             </div>
-            <div className={clsx(
-              "flex flex-col gap-2 px-6 pb-6 bg-white transition-all duration-300 delay-150",
-              mobileOpen ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-8"
-            )}>
+            <div
+              className={clsx(
+                "flex flex-col gap-2 px-6 pb-6 bg-white transition-all duration-300 delay-150",
+                mobileOpen
+                  ? "opacity-100 translate-y-0"
+                  : "opacity-0 -translate-y-8"
+              )}
+            >
               {isAuthed ? (
-                <button
-                  onClick={() => {
-                    signOut();
-                    setMobileOpen(false);
-                  }}
-                  className="w-full px-4 py-3 rounded-md transition-all font-semibold text-teal-600 bg-white border border-teal-500 hover:bg-teal-500 hover:text-white hover:border-teal-600"
-                >
-                  Logout
-                </button>
+                <div className="flex items-center gap-2 w-full">
+                  <div className="bg-teal-700 text-white rounded-full w-9 h-9 flex items-center justify-center font-bold text-lg shadow">
+                    {getInitial(user)}
+                  </div>
+                  <button
+                    onClick={() => {
+                      logout();
+                      setMobileOpen(false);
+                    }}
+                    className="w-full px-4 py-3 rounded-md transition-all font-semibold text-teal-600 bg-white border border-teal-500 hover:bg-teal-500 hover:text-white hover:border-teal-600"
+                  >
+                    Logout
+                  </button>
+                </div>
               ) : (
                 <>
                   <Link
