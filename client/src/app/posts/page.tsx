@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -17,144 +17,241 @@ import {
 import Footer from "@/components/landing/Footer";
 import { useAuth } from "@/lib/UserContext";
 import { useProfile, Profile } from "@/lib/userProfile";
-import Image from "next/image";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { fetchPosts } from "@/lib/api";
+import {
+  useCreatePost,
+  useLikePost,
+  useFetchReplies,
+  useCreateReply,
+} from "@/lib/mutations";
+import { io, Socket } from "socket.io-client";
+import { toast } from "react-hot-toast";
 
-// App's primary teal color
 const tealColor = "#14b8a6";
 
-// Helper for avatar initial (same logic as navbar)
 function getFirstNameInitial(profile: Profile | null | undefined): string {
   if (!profile) return "U";
-  if (profile.role === "user" && profile.firstname && profile.firstname.length > 0) {
+  if (
+    profile.role === "user" &&
+    profile.firstname &&
+    profile.firstname.length > 0
+  ) {
     return profile.firstname[0].toUpperCase();
   }
-  if (profile.role === "counselor" && profile.fullname && profile.fullname.length > 0) {
+  if (
+    profile.role === "counselor" &&
+    profile.fullname &&
+    profile.fullname.length > 0
+  ) {
     return profile.fullname[0].toUpperCase();
   }
   return "U";
 }
 
-// Dummy user fallback
-const currentUser = {
-  name: "Clivo User",
-  avatar: "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?auto=format&fit=crop&w=80&q=80",
+const API_URL =
+  process.env.NEXT_PUBLIC_API_BASE ||
+  "https://mindspace-backend-gusv.onrender.com";
+
+type Post = {
+  id: string;
+  user_id: string;
+  content: string;
+  username: string;
+  likes: number;
 };
 
-// Dummy posts and comments
-const dummyPosts = [
-  {
-    id: "1",
-    author: {
-      name: "Sarah Ahmed",
-      avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=80&q=80",
-    },
-    createdAt: "Just now",
-    content:
-      "✨ Just wanted to say: It’s okay to ask for help. You matter. Today I reached out to a counselor on Clivo and it felt *so* good to talk.",
-    image:
-      "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=600&q=80",
-    comments: [
-      {
-        id: "c1",
-        name: "James Williams",
-        avatar: "https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=80&q=80",
-        text: "Proud of you Sarah! 💚",
-        time: "2m",
-      },
-    ],
-    likes: 87,
-    shares: 14,
-    reposts: 4,
-  },
-  {
-    id: "2",
-    author: {
-      name: "Emily Carter",
-      avatar: "https://images.unsplash.com/photo-1464983953574-0892a716854b?auto=format&fit=crop&w=80&q=80",
-    },
-    createdAt: "8m",
-    content:
-      "Taking time for self-care is not selfish. I meditated for 10 minutes today and my anxiety went down a lot.",
-    image: "",
-    comments: [
-      {
-        id: "c2",
-        name: "Helen Johnson",
-        avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=80&q=80",
-        text: "Thanks for sharing, Emily! Mindfulness helps me too.",
-        time: "3m",
-      },
-    ],
-    likes: 45,
-    shares: 9,
-    reposts: 1,
-  },
-  {
-    id: "3",
-    author: {
-      name: "Michael Brown",
-      avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=80&q=80",
-    },
-    createdAt: "15m",
-    content:
-      "My therapist taught me about grounding techniques for panic attacks. Counting things in my room really helps.",
-    image: "",
-    comments: [],
-    likes: 21,
-    shares: 3,
-    reposts: 0,
-  },
-  {
-    id: "4",
-    author: {
-      name: "Lisa Green",
-      avatar: "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?auto=format&fit=crop&w=80&q=80",
-    },
-    createdAt: "30m",
-    content:
-      "Just finished a gratitude journal entry. Focusing on positives helps me reframe my day.",
-    image:
-      "https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=crop&w=600&q=80",
-    comments: [
-      {
-        id: "c4",
-        name: "Sarah Ahmed",
-        avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=80&q=80",
-        text: "Love this idea!",
-        time: "12m",
-      },
-    ],
-    likes: 32,
-    shares: 5,
-    reposts: 2,
-  },
-  {
-    id: "5",
-    author: {
-      name: "Chris Lee",
-      avatar: "https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?auto=format&fit=crop&w=80&q=80",
-    },
-    createdAt: "1h",
-    content:
-      "If you’re struggling today, remember: You are not alone. Clivo community is here for you. 💚",
-    image: "",
-    comments: [],
-    likes: 19,
-    shares: 2,
-    reposts: 0,
-  },
-];
+type Reply = {
+  id?: string;
+  post_id: string;
+  user_id: string;
+  content: string;
+  username?: string;
+  anonymous?: string;
+  created_at?: string;
+};
+
+function PostReplies({
+  postId,
+  token,
+  replyValue,
+  setReplyValue,
+  onCancel,
+  createReplyMutation,
+}: {
+  postId: string;
+  token?: string;
+  replyValue: string;
+  setReplyValue: (v: string) => void;
+  onCancel: () => void;
+  createReplyMutation: ReturnType<typeof useCreateReply>;
+}) {
+  const { data: allReplies = [], isPending } = useFetchReplies(postId, token);
+
+  // Show latest replies first by reversing the array after filtering by postId
+  const replies = allReplies
+    .filter((r) => String(r.post_id) === String(postId))
+    .reverse();
+
+  return (
+    <div className="mt-5 border-t pt-5 bg-gradient-to-r from-teal-50 via-white to-blue-50 rounded-2xl">
+      <div className="flex flex-col sm:flex-row gap-3 items-start">
+        <div className="hidden sm:flex flex-shrink-0 items-center justify-center w-10 h-10 bg-gradient-to-br from-teal-500 to-blue-400 rounded-full shadow-lg">
+          <Smile className="w-6 h-6 text-white" />
+        </div>
+        <div className="w-full">
+          <div className="relative">
+            <textarea
+              value={replyValue}
+              onChange={(e) => setReplyValue(e.target.value)}
+              rows={2}
+              maxLength={400}
+              className="w-full resize-none bg-white border-2 border-teal-100 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 rounded-2xl py-3 px-4 text-[0.98rem] text-gray-800 placeholder:text-gray-400 font-medium shadow-sm transition duration-200 outline-none"
+              placeholder="Write a thoughtful reply…"
+              style={{
+                minHeight: "46px",
+                boxShadow:
+                  "0 2px 12px 0 rgba(20,184,166,.05), 0 1.5px 0 #d1fae5 inset",
+              }}
+              disabled={createReplyMutation.isPending}
+            />
+            <span className="absolute bottom-3 right-4 text-xs text-gray-400 select-none">
+              {replyValue.length}/400
+            </span>
+          </div>
+          <div className="flex gap-2 mt-4 justify-end">
+            <button
+              type="button"
+              className="bg-gray-100 text-gray-600 px-4 py-1.5 rounded-xl font-semibold shadow hover:bg-gray-200 transition text-sm"
+              onClick={onCancel}
+              disabled={createReplyMutation.isPending}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                if (!token) return;
+                if (!replyValue || replyValue.trim() === "") return;
+                createReplyMutation.mutate(
+                  { post_id: String(postId), content: replyValue },
+                  {
+                    onSuccess: () => setReplyValue(""),
+                  }
+                );
+              }}
+              className={`bg-gradient-to-tr from-teal-500 to-blue-400 hover:from-teal-600 hover:to-blue-500 text-white px-6 py-1.5 rounded-xl font-bold shadow-md transition text-base flex items-center gap-2 ${
+                (!replyValue ||
+                  replyValue.trim() === "" ||
+                  createReplyMutation.isPending) &&
+                "opacity-60 cursor-not-allowed"
+              }`}
+              style={{
+                boxShadow:
+                  "0 2px 8px 0 rgba(20,184,166,.10), 0 1.5px 0 #a7f3d0 inset",
+              }}
+              disabled={
+                !replyValue ||
+                replyValue.trim() === "" ||
+                createReplyMutation.isPending
+              }
+            >
+              {createReplyMutation.isPending ? (
+                <>
+                  <svg
+                    className="animate-spin h-4 w-4 text-white"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      fill="none"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                    />
+                  </svg>
+                  Replying…
+                </>
+              ) : (
+                <>
+                  <Smile className="w-5 h-5 -ml-1" />
+                  Reply
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+      <div className="mt-5">
+        {isPending ? (
+          <div className="text-gray-400 text-xs">Loading replies...</div>
+        ) : !replies.length ? (
+          <div className="text-gray-400 text-xs">No replies yet.</div>
+        ) : (
+          <ul className="space-y-3">
+            {replies.map((reply, idx) => (
+              <li
+                key={reply.id ?? `${reply.user_id}_${idx}_${reply.content}`}
+                className="bg-white border border-teal-100 rounded-xl px-4 py-3 shadow flex items-start gap-3"
+              >
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-teal-400 to-blue-300 flex items-center justify-center font-bold text-white text-lg">
+                  {(reply.username || "A")[0].toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <span className="font-semibold text-teal-700 text-sm">
+                    {reply.username || "Anon"}
+                  </span>
+                  <p className="text-gray-700 font-medium text-[0.97rem] mt-1 whitespace-pre-wrap break-words">
+                    {reply.content}
+                  </p>
+                  {reply.created_at && (
+                    <span className="text-xs text-gray-400 mt-1 block">
+                      {new Date(reply.created_at).toLocaleString()}
+                    </span>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function PostsFeedPage() {
   const { user } = useAuth();
   const { data: profile } = useProfile();
-
   const isLoggedIn = !!user;
+  const queryClient = useQueryClient();
 
   const [composer, setComposer] = useState("");
   const [showComment, setShowComment] = useState<string | null>(null);
-  const [commentText, setCommentText] = useState("");
+  const [replyInputs, setReplyInputs] = useState<{ [postId: string]: string }>(
+    {}
+  );
   const [promptAuth, setPromptAuth] = useState(false);
+
+  const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
+  const socketRef = useRef<Socket | null>(null);
+
+  const { data: posts, isPending } = useQuery<Post[]>({
+    queryKey: ["posts"],
+    queryFn: fetchPosts,
+    staleTime: 0,
+    refetchOnWindowFocus: false,
+    select: (data) => [...data].sort((a, b) => (b.id > a.id ? 1 : -1)),
+  });
+
+  const createPost = useCreatePost(user?.access_token);
+  const likePostMutation = useLikePost(user?.access_token);
+  const createReplyMutation = useCreateReply(user?.access_token);
 
   function handlePostSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -162,20 +259,67 @@ export default function PostsFeedPage() {
       setPromptAuth(true);
       return;
     }
-    setComposer("");
-    // Add post logic here when backend is ready
+    if (composer.trim() === "") return;
+
+    const tempId = "temp-" + Date.now();
+    const optimisticPost: Post = {
+      id: tempId,
+      user_id: user?.id || "optimistic",
+      content: composer,
+      username:
+        profile?.role === "user"
+          ? profile.firstname || "You"
+          : profile?.role === "counselor"
+          ? profile.fullname || "You"
+          : "You",
+      likes: 0,
+    };
+    queryClient.setQueryData<Post[]>(["posts"], (old) =>
+      old ? [optimisticPost, ...old] : [optimisticPost]
+    );
+
+    const toastId = toast.loading("Posting...");
+    createPost.mutate(
+      { content: composer },
+      {
+        onSuccess: () => {
+          setComposer("");
+          toast.success("Post delivered!", { id: toastId });
+          queryClient.invalidateQueries({ queryKey: ["posts"] });
+        },
+        onError: () => {
+          toast.error("Failed to post. Please try again.", { id: toastId });
+          queryClient.invalidateQueries({ queryKey: ["posts"] });
+        },
+      }
+    );
   }
 
-  function handleCommentSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!isLoggedIn) {
-      setPromptAuth(true);
-      return;
+  useEffect(() => {
+    if (!socketRef.current) {
+      const socket = io(API_URL, {
+        transports: ["websocket"],
+      });
+      socketRef.current = socket;
+
+      socket.on("connect", () => {});
+
+      socket.on("new_post", (newPost: Post) => {
+        queryClient.setQueryData<Post[]>(["posts"], (old) => {
+          const filtered = old
+            ? old.filter((post) => !String(post.id).startsWith("temp-"))
+            : [];
+          return [newPost, ...(filtered || [])];
+        });
+      });
+
+      socket.on("disconnect", () => {});
     }
-    setCommentText("");
-    setShowComment(null);
-    // Add comment logic here when backend is ready
-  }
+    return () => {
+      socketRef.current?.disconnect();
+      socketRef.current = null;
+    };
+  }, [queryClient]);
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-teal-50 via-white to-blue-50 flex flex-col">
@@ -189,7 +333,6 @@ export default function PostsFeedPage() {
         >
           <form onSubmit={handlePostSubmit}>
             <div className="flex items-start gap-3 sm:gap-4">
-              {/* Avatar initial */}
               <div className="rounded-full object-cover border-2 border-teal-200 w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center bg-teal-600 text-white font-bold text-xl select-none">
                 {getFirstNameInitial(profile)}
               </div>
@@ -199,31 +342,97 @@ export default function PostsFeedPage() {
                   className="w-full resize-none bg-transparent focus:outline-none text-[0.92rem] sm:text-base placeholder:text-gray-400 font-medium border border-teal-100 rounded-xl px-3 py-2 transition focus:ring-2 focus:ring-teal-200 focus:bg-white min-h-[48px] sm:min-h-[56px] text-black"
                   placeholder="Share your story or thought for today..."
                   value={composer}
-                  onChange={e => setComposer(e.target.value)}
-                  disabled={!isLoggedIn}
+                  onChange={(e) => setComposer(e.target.value)}
+                  disabled={!isLoggedIn || createPost.isPending}
                   style={{
-                    cursor: isLoggedIn ? "text" : "not-allowed",
-                    color: "#111", // make text black always
+                    cursor:
+                      isLoggedIn && !createPost.isPending
+                        ? "text"
+                        : "not-allowed",
+                    color: "#111",
                   }}
                   tabIndex={0}
                 />
                 <div className="flex items-center gap-2 sm:gap-3 mt-3 flex-wrap">
-                  <button type="button" className="p-2 rounded hover:bg-teal-50 transition" tabIndex={-1} title="Add image"><ImageIcon className="w-5 h-5" color={tealColor} /></button>
-                  <button type="button" className="p-2 rounded hover:bg-teal-50 transition" tabIndex={-1} title="Add emoji"><Smile className="w-5 h-5" color={tealColor} /></button>
-                  <button type="button" className="p-2 rounded hover:bg-teal-50 transition" tabIndex={-1} title="Attach file"><FileText className="w-5 h-5" color={tealColor} /></button>
-                  <button type="button" className="p-2 rounded hover:bg-teal-50 transition" tabIndex={-1} title="Bold"><Bold className="w-5 h-5" color={tealColor} /></button>
-                  <button type="button" className="p-2 rounded hover:bg-teal-50 transition" tabIndex={-1} title="Italic"><Italic className="w-5 h-5" color={tealColor} /></button>
+                  <button
+                    type="button"
+                    className="p-2 rounded hover:bg-teal-50 transition"
+                    tabIndex={-1}
+                    title="Add image"
+                  >
+                    <ImageIcon className="w-5 h-5" color={tealColor} />
+                  </button>
+                  <button
+                    type="button"
+                    className="p-2 rounded hover:bg-teal-50 transition"
+                    tabIndex={-1}
+                    title="Add emoji"
+                  >
+                    <Smile className="w-5 h-5" color={tealColor} />
+                  </button>
+                  <button
+                    type="button"
+                    className="p-2 rounded hover:bg-teal-50 transition"
+                    tabIndex={-1}
+                    title="Attach file"
+                  >
+                    <FileText className="w-5 h-5" color={tealColor} />
+                  </button>
+                  <button
+                    type="button"
+                    className="p-2 rounded hover:bg-teal-50 transition"
+                    tabIndex={-1}
+                    title="Bold"
+                  >
+                    <Bold className="w-5 h-5" color={tealColor} />
+                  </button>
+                  <button
+                    type="button"
+                    className="p-2 rounded hover:bg-teal-50 transition"
+                    tabIndex={-1}
+                    title="Italic"
+                  >
+                    <Italic className="w-5 h-5" color={tealColor} />
+                  </button>
                   <button
                     type="submit"
-                    className="ml-auto bg-teal-600 hover:bg-teal-700 text-white font-semibold px-5 sm:px-7 py-2 rounded-full shadow transition text-sm sm:text-base disabled:bg-teal-200"
-                    disabled={!isLoggedIn || composer.trim() === ""}
+                    className="ml-auto bg-teal-600 hover:bg-teal-700 text-white font-semibold px-5 sm:px-7 py-2 rounded-full shadow transition text-sm sm:text-base disabled:bg-teal-200 flex items-center gap-2"
+                    disabled={
+                      !isLoggedIn ||
+                      composer.trim() === "" ||
+                      createPost.isPending
+                    }
                   >
-                    Post
+                    {createPost.isPending ? (
+                      <>
+                        <svg
+                          className="animate-spin h-4 w-4 text-white"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                            fill="none"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                          />
+                        </svg>
+                        Posting...
+                      </>
+                    ) : (
+                      "Post"
+                    )}
                   </button>
                 </div>
               </div>
             </div>
-            {/* Only show sign-in message if not logged in */}
             {!isLoggedIn && (
               <p className="mt-2 text-xs sm:text-sm text-teal-600 font-semibold">
                 Sign in to post your thoughts!
@@ -233,129 +442,114 @@ export default function PostsFeedPage() {
         </motion.div>
         {/* Feed */}
         <div className="flex flex-col gap-4 sm:gap-7">
-          {dummyPosts.map((post) => (
-            <motion.div
-              key={post.id}
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="bg-white rounded-3xl shadow-lg border border-teal-100 p-4 sm:p-6"
-            >
-              <div className="flex gap-3 sm:gap-4 items-start">
-                {/* Avatar initial for post author */}
-                <div className="rounded-full object-cover border-2 border-teal-200 w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center bg-teal-600 text-white font-bold text-xl select-none">
-                  {post.author.name[0]?.toUpperCase() || "U"}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <span className="font-bold text-teal-700 text-base sm:text-lg">{post.author.name}</span>
-                    <span className="text-xs text-gray-400 font-semibold">{post.createdAt}</span>
+          {isPending ? (
+            <div className="text-center text-teal-700 py-6 font-semibold">
+              Loading posts...
+            </div>
+          ) : posts && posts.length === 0 ? (
+            <div className="text-center text-gray-400 py-6 font-medium">
+              No posts yet. Be the first to share something!
+            </div>
+          ) : (
+            posts?.map((post) => (
+              <motion.div
+                key={post.id}
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="bg-white rounded-3xl shadow-lg border border-teal-100 p-4 sm:p-6"
+              >
+                <div className="flex gap-3 sm:gap-4 items-start">
+                  <div className="rounded-full object-cover border-2 border-teal-200 w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center bg-teal-600 text-white font-bold text-xl select-none">
+                    {post.username[0]?.toUpperCase() || "U"}
                   </div>
-                  <p className="text-sm sm:text-base text-gray-700 mb-3 whitespace-pre-line font-medium break-words">{post.content}</p>
-                  {post.image && (
-                    <div className="rounded-xl overflow-hidden border border-teal-100 mb-4">
-                      <Image
-                        src={post.image}
-                        alt="Post"
-                        width={600}
-                        height={320}
-                        className="object-cover w-full max-h-60 sm:max-h-72"
-                        loading="lazy"
-                      />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className="font-bold text-teal-700 text-base sm:text-lg">
+                        {post.username}
+                      </span>
                     </div>
-                  )}
-                  {/* Actions */}
-                  <div className="flex items-center gap-3 sm:gap-6 text-teal-500 mt-2 text-xs sm:text-sm">
-                    <button
-                      className="flex items-center gap-1 hover:bg-teal-50 p-2 rounded transition font-semibold"
-                      onClick={() => setShowComment(post.id)}
-                      aria-label="Comment"
-                      title="Comment"
-                    >
-                      <MessageCircle className="w-5 h-5" color={tealColor} />
-                      <span>{post.comments.length}</span>
-                    </button>
-                    <button className="flex items-center gap-1 hover:bg-teal-50 p-2 rounded transition font-semibold" tabIndex={-1} title="Repost">
-                      <Repeat2 className="w-5 h-5" color={tealColor} />
-                      <span>{post.reposts}</span>
-                    </button>
-                    <button className="flex items-center gap-1 hover:bg-teal-50 p-2 rounded transition font-semibold" tabIndex={-1} title="Like">
-                      <Heart className="w-5 h-5" color={tealColor} />
-                      <span>{post.likes}</span>
-                    </button>
-                    <button className="flex items-center gap-1 hover:bg-teal-50 p-2 rounded transition font-semibold" tabIndex={-1} title="Share">
-                      <Share2 className="w-5 h-5" color={tealColor} />
-                      <span>{post.shares}</span>
-                    </button>
-                  </div>
-                  {/* Comments Feed */}
-                  <div className="mt-5">
-                    {post.comments.length > 0 && (
-                      <div className="flex flex-col gap-3">
-                        {post.comments.map((comment) => (
-                          <div
-                            key={comment.id}
-                            className="flex items-center gap-2 bg-teal-50 rounded-lg px-2 py-2 sm:px-3"
-                          >
-                            {/* Avatar initial for comment author */}
-                            <div className="rounded-full object-cover border border-teal-200 w-7 h-7 flex items-center justify-center bg-teal-600 text-white font-bold text-base select-none">
-                              {comment.name[0]?.toUpperCase() || "U"}
-                            </div>
-                            <span className="text-xs font-semibold text-teal-700">{comment.name}</span>
-                            <span className="text-xs text-gray-400">{comment.time}</span>
-                            <p className="text-xs text-gray-600 ml-2 break-words">{comment.text}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  {/* Comment Section Modal */}
-                  <AnimatePresence>
-                    {showComment === post.id && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 30 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 30 }}
-                        className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-2"
+                    <p className="text-sm sm:text-base text-gray-700 mb-3 whitespace-pre-line font-medium break-words">
+                      {post.content}
+                    </p>
+                    <div className="flex items-center gap-3 sm:gap-6 text-teal-500 mt-2 text-xs sm:text-sm">
+                      <button
+                        className="flex items-center gap-1 hover:bg-teal-50 p-2 rounded transition font-semibold"
+                        onClick={() =>
+                          setShowComment(
+                            showComment === post.id ? null : post.id
+                          )
+                        }
+                        aria-label="Comment"
+                        title="Comment"
                       >
-                        <div className="bg-white rounded-2xl p-5 sm:p-7 max-w-sm w-full shadow-2xl border border-teal-100">
-                          <h3 className="text-base sm:text-lg font-bold mb-3 text-teal-700">
-                            Add a comment
-                          </h3>
-                          <form onSubmit={handleCommentSubmit} className="flex flex-col gap-3">
-                            <textarea
-                              rows={2}
-                              className="w-full border rounded-lg px-3 py-2 text-sm shadow focus:outline-teal-500 resize-none"
-                              placeholder="Write your comment..."
-                              value={commentText}
-                              onChange={e => setCommentText(e.target.value)}
-                            />
-                            <div className="flex gap-2">
-                              <button
-                                type="submit"
-                                className="bg-teal-600 text-white px-4 py-2 rounded-full font-semibold hover:bg-teal-700 transition"
-                              >
-                                Send
-                              </button>
-                              <button
-                                type="button"
-                                className="bg-gray-100 text-gray-700 px-4 py-2 rounded-full font-semibold hover:bg-gray-200 transition"
-                                onClick={() => { setShowComment(null); setCommentText(""); }}
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </form>
-                        </div>
-                      </motion.div>
+                        <MessageCircle className="w-5 h-5" color={tealColor} />
+                      </button>
+                      <button
+                        className="flex items-center gap-1 hover:bg-teal-50 p-2 rounded transition font-semibold"
+                        tabIndex={-1}
+                        title="Repost"
+                      >
+                        <Repeat2 className="w-5 h-5" color={tealColor} />
+                        <span>0</span>
+                      </button>
+                      <button
+                        className={`flex items-center gap-1 hover:bg-teal-50 p-2 rounded transition font-semibold ${
+                          likedPosts.has(post.id)
+                            ? "text-teal-600"
+                            : "text-teal-500"
+                        }`}
+                        disabled={!isLoggedIn || likePostMutation.isPending}
+                        onClick={() => {
+                          if (!isLoggedIn) {
+                            setPromptAuth(true);
+                            return;
+                          }
+                          setLikedPosts((prev) => new Set(prev).add(post.id));
+                          likePostMutation.mutate({ postId: String(post.id) });
+                        }}
+                        tabIndex={-1}
+                        title="Like"
+                      >
+                        <Heart
+                          className="w-5 h-5"
+                          color={
+                            likedPosts.has(post.id) ? "#14b8a6" : tealColor
+                          }
+                          fill={likedPosts.has(post.id) ? "#14b8a6" : "none"}
+                        />
+                        <span>{post.likes}</span>
+                      </button>
+                      <button
+                        className="flex items-center gap-1 hover:bg-teal-50 p-2 rounded transition font-semibold"
+                        tabIndex={-1}
+                        title="Share"
+                      >
+                        <Share2 className="w-5 h-5" color={tealColor} />
+                        <span>0</span>
+                      </button>
+                    </div>
+                    {showComment === post.id && (
+                      <PostReplies
+                        postId={String(post.id)}
+                        token={user?.access_token}
+                        replyValue={replyInputs[post.id] || ""}
+                        setReplyValue={(val) =>
+                          setReplyInputs((prev) => ({
+                            ...prev,
+                            [post.id]: val,
+                          }))
+                        }
+                        onCancel={() => setShowComment(null)}
+                        createReplyMutation={createReplyMutation}
+                      />
                     )}
-                  </AnimatePresence>
+                  </div>
                 </div>
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            ))
+          )}
         </div>
-        {/* Auth Modal */}
         <AnimatePresence>
           {promptAuth && (
             <motion.div
@@ -399,7 +593,6 @@ export default function PostsFeedPage() {
         </AnimatePresence>
       </section>
       <Footer />
-      {/* Responsive tweaks for mobile/tablet */}
       <style jsx global>{`
         @media (max-width: 640px) {
           .rounded-3xl {

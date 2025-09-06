@@ -2,7 +2,9 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 
+// Added optional id property to AuthUser type
 export interface AuthUser {
+  id?: string; // <-- add this line
   email: string;
   username?: string;
   firstname?: string;
@@ -39,8 +41,11 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       const firstname = localStorage.getItem("firstname") || undefined;
       const lastname = localStorage.getItem("lastname") || undefined;
       const fullname = localStorage.getItem("fullname") || undefined;
+      const id = localStorage.getItem("id") || undefined; // <-- get id from localStorage if available
+
       if (token && email && role) {
         setUser({
+          id, // <-- add id to user object
           access_token: token,
           email,
           username: username || undefined,
@@ -56,6 +61,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   // Save to localStorage on user change
   useEffect(() => {
     if (user) {
+      if (user.id) localStorage.setItem("id", user.id); // <-- save id if present
       localStorage.setItem("access_token", user.access_token);
       localStorage.setItem("email", user.email);
       localStorage.setItem("role", user.role);
@@ -66,6 +72,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       // Set cookie for backend
       document.cookie = `access_token_cookie=${user.access_token}; path=/; secure; samesite=strict; https://www.clivo.space`;
     } else {
+      localStorage.removeItem("id"); // <-- remove id on logout
       localStorage.removeItem("access_token");
       localStorage.removeItem("email");
       localStorage.removeItem("role");
@@ -74,7 +81,8 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       localStorage.removeItem("lastname");
       localStorage.removeItem("fullname");
       // Remove cookie
-      document.cookie = "access_token_cookie=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
+      document.cookie =
+        "access_token_cookie=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
     }
   }, [user]);
 

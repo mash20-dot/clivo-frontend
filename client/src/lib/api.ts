@@ -56,22 +56,42 @@ export const fetchPosts = async () => {
   return res.data;
 };
 
-export const createPost = async (payload: { content: string }) => {
-  const res = await axios.post(`${API_URL}/express/post_comment`, payload);
+export const createPost = async (
+  payload: { content: string },
+  token: string
+) => {
+  const res = await axios.post(`${API_URL}/express/post_comment`, payload, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   return res.data;
 };
 
-export const createReply = async (payload: {
-  postId: string;
-  reply: string;
-}) => {
-  const res = await axios.post(`${API_URL}/express/reply`, payload);
-  return res.data;
+// Like a post (increments like count)
+export const likePost = async (postId: string, token: string) => {
+  const res = await axios.post(
+    `${API_URL}/express/likes`,
+    { id: postId },
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  return res.data; // { message: "...", likes: number }
 };
 
-export const fetchReplies = async (postId: string) => {
+// Get replies for a post
+export const fetchReplies = async (postId: string, token: string) => {
   const res = await axios.get(`${API_URL}/express/get_reply`, {
     params: { postId },
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.data; // should be an array of replies
+};
+
+// Post a reply - USE THE CORRECT PAYLOAD!
+export const createReply = async (
+  payload: { post_id: string; content: string },
+  token: string
+) => {
+  const res = await axios.post(`${API_URL}/express/reply`, payload, {
+    headers: { Authorization: `Bearer ${token}` },
   });
   return res.data;
 };

@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   loginUser,
   signupUser,
@@ -6,6 +6,8 @@ import {
   signupCounselor,
   createPost,
   createReply,
+  likePost,
+  fetchReplies,
 } from "./api";
 
 // --- Types for responses ---
@@ -39,14 +41,23 @@ export interface PostResponse {
   user_id: string;
   content: string;
   username: string;
+  likes: number;
 }
 
 export interface ReplyResponse {
-  content: string;
+  id?: string;
   post_id: string;
   user_id: string;
-  anonymous: string;
+  content: string;
+  username?: string;
+  anonymous?: string;
+  created_at?: string;
 }
+
+type LikePostResponse = {
+  message: string;
+  likes: number;
+};
 
 // --- Mutation hooks ---
 
@@ -95,21 +106,76 @@ export const useSignupCounselor = () =>
     mutationFn: (payload) => signupCounselor(payload),
   });
 
-export const useCreatePost = () => {
+export const useCreatePost = (token?: string) => {
   const queryClient = useQueryClient();
   return useMutation<PostResponse, unknown, { content: string }>({
-    mutationFn: (payload) => createPost(payload),
+    mutationFn: (payload) => {
+      if (!token) throw new Error("Missing token");
+      return createPost(payload, token);
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["posts"] }),
   });
 };
 
-export const useCreateReply = () => {
+// HERE: Updated to expect { post_id, content }
+export const useCreateReply = (token?: string) => {
   const queryClient = useQueryClient();
-  return useMutation<ReplyResponse, unknown, { postId: string; reply: string }>(
-    {
-      mutationFn: (payload) => createReply(payload),
-      onSuccess: (_, variables) =>
-        queryClient.invalidateQueries({ queryKey: ["post", variables.postId] }),
-    }
-  );
+  return useMutation<
+    ReplyResponse,
+    unknown,
+    { post_id: string; content: string }
+  >({
+    mutationFn: (payload) => {
+      if (!token) throw new Error("Missing token");
+      return createReply(payload, token);
+    },
+    onSuccess: (_, variables) =>
+      queryClient.invalidateQueries({
+        queryKey: ["replies", variables.post_id],
+      }),
+  });
+};
+
+export const useFetchReplies = (postId: string, token?: string) =>
+  useQuery<ReplyResponse[]>({
+    queryKey: ["replies", postId, token],
+    queryFn: () => {
+      if (!token) throw new Error("Missing token");
+      return fetchReplies(postId, token);
+    },
+    enabled: !!postId && !!token,
+    staleTime: 0,
+  });
+
+// Optimistic update for like, and local "just liked" UI update
+export const useLikePost = (token?: string) => {
+  const queryClient = useQueryClient();
+  return useMutation<LikePostResponse, unknown, { postId: string }>({
+    mutationFn: ({ postId }) => {
+      if (!token) throw new Error("Missing token");
+      return likePost(postId, token);
+    },
+    onMutate: async ({ postId }) => {
+      await queryClient.cancelQueries({ queryKey: ["posts"] });
+      const previousPosts = queryClient.getQueryData<PostResponse[]>(["posts"]);
+      if (previousPosts) {
+        queryClient.setQueryData<PostResponse[]>(
+          ["posts"],
+          previousPosts.map((post) =>
+            post.id === postId ? { ...post, likes: post.likes + 1 } : post
+          )
+        );
+      }
+      return { previousPosts };
+    },
+    onError: (err, _variables, context) => {
+      const ctx = context as { previousPosts?: PostResponse[] } | undefined;
+      if (ctx?.previousPosts) {
+        queryClient.setQueryData<PostResponse[]>(["posts"], ctx.previousPosts);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
+    },
+  });
 };
