@@ -97,7 +97,9 @@ export const createReply = async (
 };
 
 // Motivation
-export const fetchMotivation = async () => {
-  const res = await axios.get(`${API_URL}/motivate/inspiration`);
+export const fetchMotivation = async (token: string) => {
+  const res = await axios.get(`${API_URL}/motivate/inspiration`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   return res.data;
 };

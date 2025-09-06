@@ -8,6 +8,7 @@ import {
   createReply,
   likePost,
   fetchReplies,
+  fetchMotivation,
 } from "./api";
 
 // --- Types for responses ---
@@ -117,6 +118,13 @@ export const useCreatePost = (token?: string) => {
   });
 };
 
+export interface MotivationQuote {
+  text?: string;
+  quote?: string;
+  message?: string; 
+  author?: string;
+}
+
 // HERE: Updated to expect { post_id, content }
 export const useCreateReply = (token?: string) => {
   const queryClient = useQueryClient();
@@ -179,3 +187,16 @@ export const useLikePost = (token?: string) => {
     },
   });
 };
+
+export const useFetchMotivation = (token?: string) =>
+  useQuery<
+    MotivationQuote[] | { quotes?: MotivationQuote[]; data?: MotivationQuote[] }
+  >({
+    queryKey: ["motivation", token],
+    queryFn: () => {
+      if (!token) throw new Error("Missing token");
+      return fetchMotivation(token);
+    },
+    enabled: !!token,
+    staleTime: 0,
+  });
