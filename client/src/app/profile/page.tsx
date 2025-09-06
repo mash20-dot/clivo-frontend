@@ -13,49 +13,53 @@ import {
 } from "lucide-react";
 import React from "react";
 
+// Decorative tags for role/license
+const Tag = ({ label, color }: { label: string; color: string }) => (
+  <span
+    className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${color} bg-opacity-10 border border-transparent`}
+  >
+    {label}
+  </span>
+);
+
 export default function ProfilePage() {
   const { user, logout } = useAuth();
   const { data: profile, isLoading, error } = useProfile();
 
-  // Helper to get initials for avatar
+  // Get initials for avatar
   const getInitial = () => {
-    if (profile?.username) return profile.username[0].toUpperCase();
-    if (profile?.fullname) return profile.fullname[0].toUpperCase();
-    if (profile?.firstname) return profile.firstname[0].toUpperCase();
-    if (profile?.email) return profile.email[0].toUpperCase();
-    if (user?.username) return user.username[0].toUpperCase();
-    if (user?.email) return user.email[0].toUpperCase();
+    if (profile?.role === "counselor" && profile?.fullname)
+      return profile.fullname[0]?.toUpperCase();
+    if (profile?.firstname) return profile.firstname[0]?.toUpperCase();
+    if (profile?.lastname) return profile.lastname[0]?.toUpperCase();
     return "U";
   };
 
-  // Helper to display full name
+  // Get full name
   const getFullName = () => {
-    if (profile?.fullname) return profile.fullname;
+    if (profile?.role === "counselor" && profile?.fullname)
+      return profile.fullname;
     if (profile?.firstname || profile?.lastname)
-      return [profile?.firstname, profile?.lastname].filter(Boolean).join(" ");
-    if (profile?.username) return profile.username;
-    if (user?.username) return user.username;
-    if (user?.email) return user.email;
+      return [profile.firstname, profile.lastname].filter(Boolean).join(" ");
     return "User";
   };
 
-  // Helper to display role
+  // Get role as tag
   const getRole = () => {
-    if (profile?.role) return profile.role === "counselor" ? "Certified Counselor" : "Community Member";
-    if (user?.role) return user.role === "counselor" ? "Certified Counselor" : "Community Member";
+    if (profile?.role)
+      return profile.role === "counselor"
+        ? "Certified Counselor"
+        : "Community Member";
+    if (user?.role)
+      return user.role === "counselor"
+        ? "Certified Counselor"
+        : "Community Member";
     return "Community Member";
   };
 
-  // Helper for email
   const getEmail = () => profile?.email || user?.email || "";
-
-  // Helper for license number
   const getLicense = () => profile?.license_number || "";
-
-  // Helper for location
   const getLocation = () => profile?.location || "";
-
-  // Helper for about
   const getAbout = () =>
     profile?.about ||
     (getRole() === "Certified Counselor"
@@ -63,25 +67,33 @@ export default function ProfilePage() {
       : "Welcome to Clivo! Start your journey to mental wellness and community inspiration.");
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-100 via-white to-blue-100 px-2 py-8">
-      <div className="w-full max-w-xl mx-auto bg-white/80 shadow-xl rounded-3xl px-4 py-6 md:px-8 md:py-10 flex flex-col items-center relative">
+    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-100 via-white to-blue-100 px-2 py-8 relative overflow-hidden">
+      {/* Decorative floating shapes */}
+      <div className="absolute top-12 left-3 w-8 h-8 bg-teal-200 rounded-full opacity-30 blur-lg animate-bounce" />
+      <div className="absolute bottom-10 right-12 w-12 h-12 bg-green-300 rounded-full opacity-30 blur-lg animate-pulse" />
+      <div className="absolute bottom-16 left-24 w-6 h-6 bg-blue-300 rounded-full opacity-30 blur-lg animate-bounce" />
+      <div className="w-full max-w-xl mx-auto bg-white/80 shadow-2xl rounded-3xl px-4 py-6 md:px-10 md:py-12 flex flex-col items-center relative border border-teal-100">
         {/* Loading State */}
         {isLoading && (
           <div className="absolute inset-0 bg-white/80 rounded-3xl flex flex-col items-center justify-center z-10">
             <Loader2 className="w-8 h-8 text-teal-600 animate-spin mb-3" />
-            <span className="text-teal-600 font-bold text-lg">Loading profile...</span>
+            <span className="text-teal-600 font-bold text-lg">
+              Loading profile...
+            </span>
           </div>
         )}
         {/* Error State */}
         {!isLoading && error && (
           <div className="absolute inset-0 bg-white/80 rounded-3xl flex flex-col items-center justify-center z-10">
-            <span className="text-red-600 font-bold text-lg px-3">Could not load profile. Please try again later.</span>
+            <span className="text-red-600 font-bold text-lg px-3">
+              Could not load profile. Please try again later.
+            </span>
           </div>
         )}
         {/* Avatar & Actions */}
         <div className="flex flex-col items-center gap-2 w-full">
           <div className="relative">
-            <div className="w-24 h-24 md:w-28 md:h-28 rounded-full bg-gradient-to-br from-teal-500 to-green-500 flex items-center justify-center text-white font-extrabold text-3xl md:text-4xl shadow-lg">
+            <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-gradient-to-br from-teal-500 to-green-500 flex items-center justify-center text-white font-extrabold text-3xl md:text-5xl shadow-xl border-4 border-white">
               {getInitial()}
             </div>
             <Link
@@ -92,31 +104,33 @@ export default function ProfilePage() {
               <Pencil className="w-5 h-5 text-teal-600" />
             </Link>
           </div>
-          <h1 className="mt-3 text-2xl md:text-3xl font-bold text-teal-700 text-center">
+          <h1 className="mt-4 text-3xl md:text-4xl font-extrabold text-teal-700 text-center drop-shadow-lg">
             {getFullName()}
           </h1>
-          <span className="text-md md:text-lg text-gray-500 font-medium text-center">
-            {getRole()}
-          </span>
+          <div className="flex items-center gap-2 mt-2">
+            {getRole() === "Certified Counselor" ? (
+              <Tag label="Counselor" color="text-green-700 bg-green-200" />
+            ) : (
+              <Tag label="Member" color="text-teal-700 bg-teal-200" />
+            )}
+            {getLicense() && (
+              <Tag
+                label={`License: ${getLicense()}`}
+                color="text-blue-700 bg-blue-200"
+              />
+            )}
+          </div>
         </div>
 
         {/* Info Section */}
-        <section className="mt-6 w-full flex flex-col gap-4 items-center md:items-start">
-          <div className="flex flex-col md:flex-row gap-4 w-full justify-center md:justify-start">
+        <section className="mt-8 w-full flex flex-col gap-6 items-center md:items-start">
+          <div className="flex flex-col md:flex-row gap-6 w-full justify-center md:justify-start">
             <div className="flex items-center gap-2">
               <Mail className="w-5 h-5 text-teal-400" />
               <span className="text-gray-700 text-base md:text-lg font-medium">
                 {getEmail()}
               </span>
             </div>
-            {getLicense() && (
-              <div className="flex items-center gap-2">
-                <BadgeCheck className="w-5 h-5 text-green-500" />
-                <span className="text-gray-700 text-base md:text-lg font-medium">
-                  License: {getLicense()}
-                </span>
-              </div>
-            )}
             {getLocation() && (
               <div className="flex items-center gap-2">
                 <MapPin className="w-5 h-5 text-blue-500" />
@@ -129,23 +143,23 @@ export default function ProfilePage() {
         </section>
 
         {/* About Section */}
-        <section className="mt-8 w-full">
-          <div className="bg-teal-50 rounded-xl p-4 md:p-6 shadow flex flex-col gap-2">
+        <section className="mt-10 w-full">
+          <div className="bg-gradient-to-r from-teal-50 to-green-50 rounded-xl p-5 md:p-8 shadow flex flex-col gap-2 border border-teal-100">
             <h2 className="text-lg md:text-xl font-bold text-teal-700 flex items-center gap-2">
               <UserIcon className="w-5 h-5" />
               About
             </h2>
-            <p className="text-gray-700 text-base md:text-lg font-medium">
+            <p className="text-gray-700 text-base md:text-lg font-medium leading-relaxed">
               {getAbout()}
             </p>
           </div>
         </section>
 
         {/* Actions */}
-        <div className="mt-8 w-full flex flex-col gap-3 items-center md:items-end">
+        <div className="mt-10 w-full flex flex-col gap-3 items-center md:items-end">
           <button
             onClick={logout}
-            className="flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-teal-600 to-green-500 shadow hover:from-teal-700 hover:to-green-600 transition text-lg"
+            className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-teal-600 to-green-500 shadow hover:from-teal-700 hover:to-green-600 transition text-lg"
           >
             <LogOut className="w-5 h-5" />
             Logout

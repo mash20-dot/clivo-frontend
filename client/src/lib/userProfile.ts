@@ -1,15 +1,20 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, UseQueryResult } from "@tanstack/react-query";
 import axios from "axios";
 import { useAuth } from "./UserContext";
+
+// Profile type definitions
+export type Profile =
+  | { role: "counselor"; fullname?: string; avatar?: string; email?: string }
+  | { role: "user"; firstname?: string; lastname?: string; avatar?: string; email?: string };
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_BASE ||
   "https://mindspace-backend-gusv.onrender.com";
 
-export function useProfile() {
+export function useProfile(): UseQueryResult<Profile, unknown> {
   const { user } = useAuth();
 
-  return useQuery({
+  return useQuery<Profile, unknown>({
     queryKey: ["profile", user?.role, user?.access_token],
     queryFn: async () => {
       if (!user?.access_token || !user?.role)
@@ -23,12 +28,25 @@ export function useProfile() {
       }
 
       const res = await axios.get(endpoint, {
-        withCredentials: true, // <-- required for cookies to be sent!
+        withCredentials: true,
         headers: {
           Authorization: `Bearer ${user.access_token}`,
         },
       });
-      return res.data;
+
+      // Normalize the response for users
+      if (user.role !== "counselor") {
+        const data = Array.isArray(res.data) ? res.data[0] : res.data;
+        // Some APIs use messagefirstname for first name
+        return {
+          ...data,
+          firstname: data.messagefirstname ?? data.firstname,
+          role: "user"
+        };
+      }
+
+      // Counselors: just return as is, but ensure role is set
+      return { ...res.data, role: "counselor" };
     },
     enabled: !!user?.access_token,
     staleTime: 1000 * 60 * 10,

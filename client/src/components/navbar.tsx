@@ -5,16 +5,28 @@ import { Menu, X, ChevronDown, User as UserIcon } from "lucide-react";
 import clsx from "clsx";
 import Image from "next/image";
 import { useAuth } from "@/lib/UserContext";
+import { useProfile, Profile } from "@/lib/userProfile";
 
-// Helper for avatar initial
-function getInitial(
-  user: { username?: string; firstname?: string; email?: string } | null
-): string {
-  if (user?.username) return user.username[0]?.toUpperCase();
-  if (user?.firstname) return user.firstname[0]?.toUpperCase();
-  if (user?.email) return user.email[0]?.toUpperCase();
+// Helper for avatar initial (handles both user and counselor)
+function getFirstNameInitial(profile: Profile | null | undefined): string {
+  if (!profile) return "U";
+  if (
+    profile.role === "user" &&
+    profile.firstname &&
+    profile.firstname.length > 0
+  ) {
+    return profile.firstname[0].toUpperCase();
+  }
+  if (
+    profile.role === "counselor" &&
+    profile.fullname &&
+    profile.fullname.length > 0
+  ) {
+    return profile.fullname[0].toUpperCase();
+  }
   return "U";
 }
+
 const NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/posts", label: "Posts" },
@@ -25,6 +37,8 @@ const NAV_LINKS = [
 export default function Navbar() {
   const { user, logout } = useAuth();
   const isAuthed = !!user;
+
+  const { data: profile } = useProfile();
 
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -77,14 +91,14 @@ export default function Navbar() {
         aria-label="Open profile menu"
       >
         <div className="bg-teal-700 text-white rounded-full w-9 h-9 flex items-center justify-center font-bold text-lg shadow">
-          {getInitial(user)}
+          {getFirstNameInitial(profile)}
         </div>
         <ChevronDown className="text-teal-700 w-4 h-4" />
       </button>
       {showDropdown && (
         <div className="absolute right-0 top-full mt-2 bg-white rounded-lg shadow-lg border border-gray-200 z-50 min-w-[160px]">
           <Link
-            href="/profile" // you can change this later!
+            href="/profile"
             className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-teal-50 transition-colors"
             onClick={() => setShowDropdown(false)}
           >
@@ -280,7 +294,7 @@ export default function Navbar() {
               {isAuthed ? (
                 <div className="flex items-center gap-2 w-full">
                   <div className="bg-teal-700 text-white rounded-full w-9 h-9 flex items-center justify-center font-bold text-lg shadow">
-                    {getInitial(user)}
+                    {getFirstNameInitial(profile)}
                   </div>
                   <button
                     onClick={() => {
