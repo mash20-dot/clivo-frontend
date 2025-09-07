@@ -55,12 +55,11 @@ export interface ReplyResponse {
   created_at?: string;
 }
 
-type LikePostResponse = {
-  message: string;
+export type LikePostResponse = {
+  message?: string;
   likes: number;
+  liked: boolean;
 };
-
-// --- Mutation hooks ---
 
 export const useLoginUser = () =>
   useMutation<LoginResponse, unknown, { email: string; password: string }>({
@@ -125,7 +124,6 @@ export interface MotivationQuote {
   author?: string;
 }
 
-// HERE: Updated to expect { post_id, content }
 export const useCreateReply = (token?: string) => {
   const queryClient = useQueryClient();
   return useMutation<
@@ -155,37 +153,12 @@ export const useFetchReplies = (postId: string, token?: string) =>
     staleTime: 0,
   });
 
-// Optimistic update for like, and local "just liked" UI update
+// Like/unlike (toggle) - only needs postId, gets token from hook param
 export const useLikePost = (token?: string) => {
-  const queryClient = useQueryClient();
   return useMutation<LikePostResponse, unknown, { postId: string }>({
     mutationFn: ({ postId }) => {
       if (!token) throw new Error("Missing token");
       return likePost(postId, token);
-    },
-    onMutate: async ({ postId }) => {
-      await queryClient.cancelQueries({ queryKey: ["posts"] });
-      const previousPosts = queryClient.getQueryData<PostResponse[]>(["posts"]);
-      if (previousPosts) {
-        queryClient.setQueryData<PostResponse[]>(
-          ["posts"],
-          previousPosts.map((post) =>
-            post.id === postId
-              ? { ...post, likes: Math.max(post.likes + 1, 0) }
-              : post
-          )
-        );
-      }
-      return { previousPosts };
-    },
-    onError: (err, _variables, context) => {
-      const ctx = context as { previousPosts?: PostResponse[] } | undefined;
-      if (ctx?.previousPosts) {
-        queryClient.setQueryData<PostResponse[]>(["posts"], ctx.previousPosts);
-      }
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["posts"] });
     },
   });
 };

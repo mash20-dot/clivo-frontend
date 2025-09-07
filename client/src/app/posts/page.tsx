@@ -13,6 +13,10 @@ import {
   FileText,
   Bold,
   Italic,
+  X as XIcon,
+  Facebook,
+  Linkedin,
+  Clipboard,
 } from "lucide-react";
 import Footer from "@/components/landing/Footer";
 import { useAuth } from "@/lib/UserContext";
@@ -243,6 +247,15 @@ function PostReplies({
   );
 }
 
+// Helper to create a shareable URL for a post
+function getPostUrl(postId: string) {
+  if (typeof window !== "undefined") {
+    return `${window.location.origin}/posts/${postId}`;
+  }
+  // fallback for SSR, won't actually be used
+  return `/posts/${postId}`;
+}
+
 export default function PostsFeedPage() {
   const { user } = useAuth();
   const { data: profile } = useProfile();
@@ -263,6 +276,8 @@ export default function PostsFeedPage() {
   const [repliesCount, setRepliesCount] = useState<{
     [postId: string]: number;
   }>({});
+
+  const [openShareId, setOpenShareId] = useState<string | null>(null);
 
   const socketRef = useRef<Socket | null>(null);
 
@@ -304,25 +319,72 @@ export default function PostsFeedPage() {
   }, []);
 
   function handleLike(postId: string) {
-    setLikedPosts((prev) => {
-      const updated = new Set(prev);
-      if (updated.has(postId)) {
-        updated.delete(postId);
-        setLikesCount((lc) => ({
-          ...lc,
-          [postId]: Math.max((lc[postId] || 1) - 1, 0),
-        }));
-        likePostMutation.mutate({ postId });
-      } else {
-        updated.add(postId);
-        setLikesCount((lc) => ({
-          ...lc,
-          [postId]: (lc[postId] ?? 0) + 1,
-        }));
-        likePostMutation.mutate({ postId });
+    if (!isLoggedIn || likePostMutation.isPending || !user?.access_token) {
+      if (!isLoggedIn) setPromptAuth(true);
+      return;
+    }
+    likePostMutation.mutate(
+      { postId },
+      {
+        onSuccess: (data) => {
+          setLikesCount((prev) => ({ ...prev, [postId]: data.likes }));
+          setLikedPosts((prev) => {
+            const updated = new Set(prev);
+            if (data.liked) updated.add(postId);
+            else updated.delete(postId);
+            return updated;
+          });
+        },
       }
-      return updated;
-    });
+    );
+  }
+
+  // Share logic
+  function handleShare(platform: string, post: Post) {
+    const url = getPostUrl(post.id);
+    const text = encodeURIComponent(post.content);
+    const encodedUrl = encodeURIComponent(url);
+
+    if (platform === "copy") {
+      navigator.clipboard.writeText(url);
+      toast.success("Link copied to clipboard!");
+      setOpenShareId(null);
+      return;
+    }
+
+    if (
+      platform === "webshare" &&
+      typeof navigator !== "undefined" &&
+      typeof navigator.share === "function"
+    ) {
+      navigator.share({
+        title: "Check out this post!",
+        text: post.content,
+        url,
+      });
+      setOpenShareId(null);
+      return;
+    }
+
+    let shareUrl = "";
+    switch (platform) {
+      case "twitter":
+        shareUrl = `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${text}`;
+        break;
+      case "facebook":
+        shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`;
+        break;
+      case "whatsapp":
+        shareUrl = `https://api.whatsapp.com/send?text=${text}%20${encodedUrl}`;
+        break;
+      case "linkedin":
+        shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`;
+        break;
+      default:
+        return;
+    }
+    window.open(shareUrl, "_blank", "noopener,noreferrer");
+    setOpenShareId(null);
   }
 
   useEffect(() => {
@@ -556,7 +618,7 @@ export default function PostsFeedPage() {
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="bg-white rounded-3xl shadow-lg border border-teal-100 p-4 sm:p-6"
+                className="bg-white rounded-3xl shadow-lg border border-teal-100 p-4 sm:p-6 relative"
               >
                 <div className="flex gap-3 sm:gap-4 items-start">
                   <div className="rounded-full object-cover border-2 border-teal-200 w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center bg-teal-600 text-white font-bold text-xl select-none">
@@ -571,7 +633,7 @@ export default function PostsFeedPage() {
                     <p className="text-sm sm:text-base text-gray-700 mb-3 whitespace-pre-line font-medium break-words">
                       {post.content}
                     </p>
-                    <div className="flex items-center gap-3 sm:gap-6 text-teal-500 mt-2 text-xs sm:text-sm">
+                    <div className="flex items-center gap-3 sm:gap-6 text-teal-500 mt-2 text-xs sm:text-sm relative">
                       <button
                         className="flex items-center gap-1 hover:bg-teal-50 p-2 rounded transition font-semibold"
                         onClick={() =>
@@ -613,14 +675,108 @@ export default function PostsFeedPage() {
                         />
                         <span>{likesCount[post.id] ?? post.likes}</span>
                       </button>
-                      <button
-                        className="flex items-center gap-1 hover:bg-teal-50 p-2 rounded transition font-semibold"
-                        tabIndex={-1}
-                        title="Share"
-                      >
-                        <Share2 className="w-5 h-5" color={tealColor} />
-                        <span>0</span>
-                      </button>
+                      {/* Share Button */}
+                      <div className="relative inline-block">
+                        <button
+                          className={`flex items-center gap-1 px-2 py-1.5 rounded transition font-semibold
+                            hover:bg-teal-100 focus:ring-2 focus:ring-teal-200 focus:outline-none
+                            ${openShareId === post.id ? "bg-teal-50" : ""}
+                          `}
+                          tabIndex={-1}
+                          title="Share"
+                          onClick={() =>
+                            setOpenShareId(
+                              openShareId === post.id ? null : post.id
+                            )
+                          }
+                        >
+                          <Share2 className="w-5 h-5" color={tealColor} />
+                          <span>Share</span>
+                        </button>
+                        {/* Share menu */}
+                        <AnimatePresence>
+                          {openShareId === post.id && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 12, scale: 0.97 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              exit={{ opacity: 0, y: 12, scale: 0.97 }}
+                              transition={{
+                                type: "spring",
+                                stiffness: 350,
+                                damping: 26,
+                              }}
+                              className="absolute z-50 right-0 mt-2"
+                            >
+                              {/* Caret Arrow */}
+                              <div className="flex justify-end pr-6">
+                                <div className="w-3 h-3 bg-white border-t border-l border-gray-200 rotate-45 -mt-2 mr-2 shadow-sm"></div>
+                              </div>
+                              <div className="bg-white border border-gray-200 shadow-2xl rounded-2xl p-2 min-w-[210px] max-w-xs flex flex-col gap-1 transition relative">
+                                {typeof navigator !== "undefined" &&
+                                  typeof navigator.share === "function" && (
+                                    <button
+                                      className="flex items-center gap-2 px-3 py-2 rounded-xl transition hover:bg-teal-50 text-gray-900 font-medium group"
+                                      onClick={() =>
+                                        handleShare("webshare", post)
+                                      }
+                                    >
+                                      <Share2 className="w-4 h-4 text-teal-500 group-hover:text-teal-700" />
+                                      Share Post
+                                    </button>
+                                  )}
+                                <button
+                                  className="flex items-center gap-2 px-3 py-2 rounded-xl transition hover:bg-[#F5F8FA] text-[#1DA1F2] font-medium group"
+                                  onClick={() => handleShare("twitter", post)}
+                                >
+                                  <XIcon className="w-4 h-4 text-[#1DA1F2] group-hover:text-[#0a85d9]" />
+                                  Share on X (Twitter)
+                                </button>
+                                <button
+                                  className="flex items-center gap-2 px-3 py-2 rounded-xl transition hover:bg-[#F0F2F5] text-[#1877F3] font-medium group"
+                                  onClick={() => handleShare("facebook", post)}
+                                >
+                                  <Facebook className="w-4 h-4 text-[#1877F3] group-hover:text-[#145cb7]" />
+                                  Share on Facebook
+                                </button>
+                                <button
+                                  className="flex items-center gap-2 px-3 py-2 rounded-xl transition hover:bg-[#e9f5ec] text-[#25D366] font-medium group"
+                                  onClick={() => handleShare("whatsapp", post)}
+                                >
+                                  <Share2 className="w-4 h-4 text-[#25D366] group-hover:text-[#1ebc59]" />
+                                  Share on WhatsApp
+                                </button>
+                                <button
+                                  className="flex items-center gap-2 px-3 py-2 rounded-xl transition hover:bg-[#eef3f8] text-[#0077B5] font-medium group"
+                                  onClick={() => handleShare("linkedin", post)}
+                                >
+                                  <Linkedin className="w-4 h-4 text-[#0077B5] group-hover:text-[#005983]" />
+                                  Share on LinkedIn
+                                </button>
+                                <div className="my-1 border-t border-gray-100" />
+                                <button
+                                  className="flex items-center gap-2 px-3 py-2 rounded-xl transition hover:bg-teal-50 text-gray-900 font-medium group"
+                                  onClick={() => handleShare("copy", post)}
+                                >
+                                  <Clipboard className="w-4 h-4 text-gray-400 group-hover:text-teal-600" />
+                                  Copy Link
+                                </button>
+                                <button
+                                  className="absolute top-2 right-3 text-gray-400 text-xl font-bold hover:text-teal-600 transition"
+                                  onClick={() => setOpenShareId(null)}
+                                  style={{
+                                    background: "none",
+                                    border: "none",
+                                    padding: 0,
+                                  }}
+                                  aria-label="Close"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
                     </div>
                     {showComment === post.id && (
                       <PostReplies
