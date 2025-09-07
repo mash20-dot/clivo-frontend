@@ -56,7 +56,7 @@ export default function SignupPage() {
             });
           }
           toast.success("Account created! Welcome to Clivo.");
-          router.push("/dashboard");
+          router.push("/auth/login");
         },
         onError: (err: unknown) => {
           let message = "Could not create account. Please try again.";

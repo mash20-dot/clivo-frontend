@@ -121,7 +121,7 @@ export const useCreatePost = (token?: string) => {
 export interface MotivationQuote {
   text?: string;
   quote?: string;
-  message?: string; 
+  message?: string;
   author?: string;
 }
 
@@ -170,7 +170,9 @@ export const useLikePost = (token?: string) => {
         queryClient.setQueryData<PostResponse[]>(
           ["posts"],
           previousPosts.map((post) =>
-            post.id === postId ? { ...post, likes: post.likes + 1 } : post
+            post.id === postId
+              ? { ...post, likes: Math.max(post.likes + 1, 0) }
+              : post
           )
         );
       }

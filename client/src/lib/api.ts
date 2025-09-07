@@ -1,5 +1,10 @@
 import axios from "axios";
 
+let onLogout: (() => void) | null = null;
+export const setApiLogoutHandler = (handler: () => void) => {
+  onLogout = handler;
+};
+
 const API_URL =
   process.env.NEXT_PUBLIC_API_BASE ||
   "https://mindspace-backend-gusv.onrender.com";
@@ -103,3 +108,17 @@ export const fetchMotivation = async (token: string) => {
   });
   return res.data;
 };
+
+// Axios interceptor for token expiry handling
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error?.response?.status === 401 && onLogout) {
+      onLogout();
+      return Promise.reject(error);
+    }
+    return Promise.reject(error);
+  }
+);
+
+export default axios;

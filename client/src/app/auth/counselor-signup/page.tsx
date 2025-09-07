@@ -70,7 +70,7 @@ export default function CounselorSignupPage() {
           toast.success(
             "Thanks for signing up as a counselor! We will review your info."
           );
-          router.push("/dashboard");
+          router.push("/auth/login");
         },
         onError: (err: unknown) => {
           let message = "Could not create account. Please try again.";

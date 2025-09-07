@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -78,6 +78,8 @@ function PostReplies({
   setReplyValue,
   onCancel,
   createReplyMutation,
+  onRepliesLoaded,
+  onReplyPosted,
 }: {
   postId: string;
   token?: string;
@@ -85,13 +87,26 @@ function PostReplies({
   setReplyValue: (v: string) => void;
   onCancel: () => void;
   createReplyMutation: ReturnType<typeof useCreateReply>;
+  onRepliesLoaded: (count: number) => void;
+  onReplyPosted: () => void;
 }) {
   const { data: allReplies = [], isPending } = useFetchReplies(postId, token);
 
-  // Show latest replies first by reversing the array after filtering by postId
-  const replies = allReplies
-    .filter((r) => String(r.post_id) === String(postId))
-    .reverse();
+  const replies = useMemo(
+    () =>
+      allReplies.filter((r) => String(r.post_id) === String(postId)).reverse(),
+    [allReplies, postId]
+  );
+
+  // Only call onRepliesLoaded when count actually changes
+  const lastCountRef = useRef<number>(-1);
+  useEffect(() => {
+    if (replies.length !== lastCountRef.current) {
+      onRepliesLoaded(replies.length);
+      lastCountRef.current = replies.length;
+    }
+    // eslint-disable-next-line
+  }, [replies.length, onRepliesLoaded]);
 
   return (
     <div className="mt-5 border-t pt-5 bg-gradient-to-r from-teal-50 via-white to-blue-50 rounded-2xl">
@@ -135,7 +150,10 @@ function PostReplies({
                 createReplyMutation.mutate(
                   { post_id: String(postId), content: replyValue },
                   {
-                    onSuccess: () => setReplyValue(""),
+                    onSuccess: () => {
+                      setReplyValue("");
+                      onReplyPosted();
+                    },
                   }
                 );
               }}
@@ -239,6 +257,13 @@ export default function PostsFeedPage() {
   const [promptAuth, setPromptAuth] = useState(false);
 
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
+  const [likesCount, setLikesCount] = useState<{ [postId: string]: number }>(
+    {}
+  );
+  const [repliesCount, setRepliesCount] = useState<{
+    [postId: string]: number;
+  }>({});
+
   const socketRef = useRef<Socket | null>(null);
 
   const { data: posts, isPending } = useQuery<Post[]>({
@@ -252,6 +277,107 @@ export default function PostsFeedPage() {
   const createPost = useCreatePost(user?.access_token);
   const likePostMutation = useLikePost(user?.access_token);
   const createReplyMutation = useCreateReply(user?.access_token);
+
+  useEffect(() => {
+    if (posts) {
+      const likeCounts: { [postId: string]: number } = {};
+      posts.forEach((post) => {
+        likeCounts[post.id] = post.likes;
+      });
+      setLikesCount(likeCounts);
+
+      const replyCounts: { [postId: string]: number } = {};
+      posts.forEach((post) => (replyCounts[post.id] = 0));
+      setRepliesCount(replyCounts);
+    }
+  }, [posts]);
+
+  // Stable callbacks to avoid infinite loops
+  const handleRepliesFetched = useCallback((postId: string, count: number) => {
+    setRepliesCount((prev) => ({ ...prev, [postId]: count }));
+  }, []);
+  const handleReplyPosted = useCallback((postId: string) => {
+    setRepliesCount((prev) => ({
+      ...prev,
+      [postId]: (prev[postId] ?? 0) + 1,
+    }));
+  }, []);
+
+  function handleLike(postId: string) {
+    setLikedPosts((prev) => {
+      const updated = new Set(prev);
+      if (updated.has(postId)) {
+        updated.delete(postId);
+        setLikesCount((lc) => ({
+          ...lc,
+          [postId]: Math.max((lc[postId] || 1) - 1, 0),
+        }));
+        likePostMutation.mutate({ postId });
+      } else {
+        updated.add(postId);
+        setLikesCount((lc) => ({
+          ...lc,
+          [postId]: (lc[postId] ?? 0) + 1,
+        }));
+        likePostMutation.mutate({ postId });
+      }
+      return updated;
+    });
+  }
+
+  useEffect(() => {
+    if (!socketRef.current) {
+      const socket = io(API_URL, {
+        transports: ["websocket"],
+      });
+      socketRef.current = socket;
+
+      socket.on("new_post", (newPost: Post) => {
+        queryClient.setQueryData<Post[]>(["posts"], (old) => {
+          const filtered = old
+            ? old.filter((post) => !String(post.id).startsWith("temp-"))
+            : [];
+          return [newPost, ...(filtered || [])];
+        });
+      });
+
+      socket.on(
+        "like_update",
+        ({
+          postId,
+          likes,
+          likedByMe,
+        }: {
+          postId: string;
+          likes: number;
+          likedByMe?: boolean;
+        }) => {
+          setLikesCount((prev) => ({ ...prev, [postId]: likes }));
+          if (likedByMe !== undefined) {
+            setLikedPosts((prev) => {
+              const updated = new Set(prev);
+              if (likedByMe) updated.add(postId);
+              else updated.delete(postId);
+              return updated;
+            });
+          }
+        }
+      );
+
+      socket.on(
+        "reply_update",
+        ({ postId, count }: { postId: string; count: number }) => {
+          setRepliesCount((prev) => ({ ...prev, [postId]: count }));
+        }
+      );
+
+      socket.on("disconnect", () => {});
+    }
+    return () => {
+      socketRef.current?.disconnect();
+      socketRef.current = null;
+    };
+  }, [queryClient]);
 
   function handlePostSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -277,7 +403,6 @@ export default function PostsFeedPage() {
     queryClient.setQueryData<Post[]>(["posts"], (old) =>
       old ? [optimisticPost, ...old] : [optimisticPost]
     );
-
     const toastId = toast.loading("Posting...");
     createPost.mutate(
       { content: composer },
@@ -294,32 +419,6 @@ export default function PostsFeedPage() {
       }
     );
   }
-
-  useEffect(() => {
-    if (!socketRef.current) {
-      const socket = io(API_URL, {
-        transports: ["websocket"],
-      });
-      socketRef.current = socket;
-
-      socket.on("connect", () => {});
-
-      socket.on("new_post", (newPost: Post) => {
-        queryClient.setQueryData<Post[]>(["posts"], (old) => {
-          const filtered = old
-            ? old.filter((post) => !String(post.id).startsWith("temp-"))
-            : [];
-          return [newPost, ...(filtered || [])];
-        });
-      });
-
-      socket.on("disconnect", () => {});
-    }
-    return () => {
-      socketRef.current?.disconnect();
-      socketRef.current = null;
-    };
-  }, [queryClient]);
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-teal-50 via-white to-blue-50 flex flex-col">
@@ -484,6 +583,7 @@ export default function PostsFeedPage() {
                         title="Comment"
                       >
                         <MessageCircle className="w-5 h-5" color={tealColor} />
+                        <span>{repliesCount[post.id] || 0}</span>
                       </button>
                       <button
                         className="flex items-center gap-1 hover:bg-teal-50 p-2 rounded transition font-semibold"
@@ -500,16 +600,9 @@ export default function PostsFeedPage() {
                             : "text-teal-500"
                         }`}
                         disabled={!isLoggedIn || likePostMutation.isPending}
-                        onClick={() => {
-                          if (!isLoggedIn) {
-                            setPromptAuth(true);
-                            return;
-                          }
-                          setLikedPosts((prev) => new Set(prev).add(post.id));
-                          likePostMutation.mutate({ postId: String(post.id) });
-                        }}
+                        onClick={() => handleLike(post.id)}
                         tabIndex={-1}
-                        title="Like"
+                        title={likedPosts.has(post.id) ? "Unlike" : "Like"}
                       >
                         <Heart
                           className="w-5 h-5"
@@ -518,7 +611,7 @@ export default function PostsFeedPage() {
                           }
                           fill={likedPosts.has(post.id) ? "#14b8a6" : "none"}
                         />
-                        <span>{post.likes}</span>
+                        <span>{likesCount[post.id] ?? post.likes}</span>
                       </button>
                       <button
                         className="flex items-center gap-1 hover:bg-teal-50 p-2 rounded transition font-semibold"
@@ -542,6 +635,10 @@ export default function PostsFeedPage() {
                         }
                         onCancel={() => setShowComment(null)}
                         createReplyMutation={createReplyMutation}
+                        onRepliesLoaded={(count) =>
+                          handleRepliesFetched(post.id, count)
+                        }
+                        onReplyPosted={() => handleReplyPosted(post.id)}
                       />
                     )}
                   </div>

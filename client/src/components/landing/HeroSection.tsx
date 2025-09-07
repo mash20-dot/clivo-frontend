@@ -1,10 +1,50 @@
-'use client';
+"use client";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Sparkles } from "lucide-react";
+import { useAuth } from "@/lib/UserContext";
+import { useProfile } from "@/lib/userProfile";
 
 export default function HeroSection() {
+  const { user } = useAuth();
+  const { data: profile } = useProfile();
+
+  // Determine which button to show
+  let button: React.ReactNode = null;
+  if (user && profile) {
+    // Signed in: show based on role
+    if (profile.role === "counselor") {
+      button = (
+        <Link
+          href="/dashboard"
+          className="bg-teal-600 hover:bg-teal-700 transition text-white font-semibold py-3 px-8 rounded-xl shadow-md"
+        >
+          Go to Dashboard
+        </Link>
+      );
+    } else {
+      button = (
+        <Link
+          href="/posts"
+          className="bg-teal-600 hover:bg-teal-700 transition text-white font-semibold py-3 px-8 rounded-xl shadow-md"
+        >
+          Make a Post
+        </Link>
+      );
+    }
+  } else {
+    // Not signed in: show make a post (will prompt login if needed)
+    button = (
+      <Link
+        href="/posts"
+        className="bg-teal-600 hover:bg-teal-700 transition text-white font-semibold py-3 px-8 rounded-xl shadow-md"
+      >
+        Make a Post
+      </Link>
+    );
+  }
+
   return (
     <section className="relative w-full min-h-[80vh] flex items-center justify-center bg-gradient-to-br from-teal-200 via-teal-50 to-blue-50 overflow-hidden">
       <motion.div
@@ -21,14 +61,7 @@ export default function HeroSection() {
           <p className="mb-8 text-lg md:text-2xl text-gray-700 max-w-lg">
             Motivation, community, and professional support at your fingertips.
           </p>
-          <div className="flex gap-4">
-            <Link href="/get-started-choice" className="bg-teal-600 hover:bg-teal-700 transition text-white font-semibold py-3 px-8 rounded-xl shadow-md">
-              Get Started
-            </Link>
-            <Link href="/auth/login" className="bg-white border border-teal-600 text-teal-700 font-semibold py-3 px-8 rounded-xl shadow-md hover:bg-teal-50">
-              Login
-            </Link>
-          </div>
+          <div className="flex gap-4">{button}</div>
         </div>
         <motion.div
           className="flex-1 flex justify-center relative min-h-[320px] w-full md:max-w-md"
@@ -48,8 +81,8 @@ export default function HeroSection() {
       </motion.div>
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-0">
         <svg width="100%" height="100%" viewBox="0 0 900 600" fill="none">
-          <circle cx="200" cy="100" r="140" fill="#bae6fd" fillOpacity="0.17"/>
-          <circle cx="700" cy="500" r="180" fill="#d1f7e2" fillOpacity="0.13"/>
+          <circle cx="200" cy="100" r="140" fill="#bae6fd" fillOpacity="0.17" />
+          <circle cx="700" cy="500" r="180" fill="#d1f7e2" fillOpacity="0.13" />
         </svg>
       </div>
     </section>
