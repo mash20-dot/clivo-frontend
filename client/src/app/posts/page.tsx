@@ -121,7 +121,7 @@ function PostReplies({
               onChange={(e) => setReplyValue(e.target.value)}
               rows={2}
               maxLength={400}
-              className="w-full resize-none bg-white border-2 border-teal-100 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 rounded-2xl py-3 px-4 text-[0.98rem] text-gray-800 placeholder:text-gray-400 font-medium shadow-sm transition duration-200 outline-none"
+              className="w-full resize-none bg-white border-2 border-teal-100 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 rounded-2xl py-3 px-4 text-sm text-gray-800 placeholder:text-gray-400 font-medium shadow-sm transition duration-200 outline-none"
               placeholder="Write a thoughtful reply…"
               style={{
                 minHeight: "46px",
@@ -225,7 +225,7 @@ function PostReplies({
                   <span className="font-semibold text-teal-700 text-sm">
                     {reply.username || "Anon"}
                   </span>
-                  <p className="text-gray-700 font-medium text-[0.97rem] mt-1 whitespace-pre-wrap break-words">
+                  <p className="text-gray-700 font-medium text-sm mt-1 whitespace-pre-wrap break-words">
                     {reply.content}
                   </p>
                   {reply.created_at && (
