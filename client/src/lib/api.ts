@@ -50,8 +50,10 @@ export const signupCounselor = async (payload: {
   return res.data;
 };
 
-export const fetchCounselors = async () => {
-  const res = await axios.get(`${API_URL}/find_counselor/get_service`);
+export const fetchCounselors = async (token?: string) => {
+  const res = await axios.get(`${API_URL}/find_counselor/get_service`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
   return res.data;
 };
 
