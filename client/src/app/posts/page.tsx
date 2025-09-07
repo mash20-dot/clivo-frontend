@@ -21,7 +21,7 @@ import {
 import Footer from "@/components/landing/Footer";
 import { useAuth } from "@/lib/UserContext";
 import { useProfile, Profile } from "@/lib/userProfile";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { fetchPosts } from "@/lib/api";
 import {
   useCreatePost,
@@ -67,8 +67,8 @@ type Post = {
 
 type Reply = {
   id?: string;
-  post_id: string;
-  user_id: string;
+  post_id: string | number;
+  user_id: string | number;
   content: string;
   username?: string;
   anonymous?: string;
@@ -98,7 +98,9 @@ function PostReplies({
 
   const replies = useMemo(
     () =>
-      allReplies.filter((r) => String(r.post_id) === String(postId)).reverse(),
+      allReplies
+        .filter((r) => String(r.post_id) === String(postId))
+        .sort((a, b) => Number(b.id) - Number(a.id)),
     [allReplies, postId]
   );
 
@@ -256,6 +258,21 @@ function getPostUrl(postId: string) {
   return `/posts/${postId}`;
 }
 
+// Utility to fetch all replies (not per post), for counting
+async function fetchAllReplies(token?: string): Promise<Reply[]> {
+  const API_URL =
+    process.env.NEXT_PUBLIC_API_BASE ||
+    "https://mindspace-backend-gusv.onrender.com";
+  const res = await fetch(
+    `${API_URL}/express/get_reply`,
+    token
+      ? { headers: { Authorization: `Bearer ${token}` } }
+      : undefined
+  );
+  if (!res.ok) throw new Error("Failed to fetch replies");
+  return await res.json();
+}
+
 export default function PostsFeedPage() {
   const { user } = useAuth();
   const { data: profile } = useProfile();
@@ -277,35 +294,57 @@ export default function PostsFeedPage() {
     [postId: string]: number;
   }>({});
 
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loadingPosts, setLoadingPosts] = useState(true);
+
   const [openShareId, setOpenShareId] = useState<string | null>(null);
 
   const socketRef = useRef<Socket | null>(null);
-
-  const { data: posts, isPending } = useQuery<Post[]>({
-    queryKey: ["posts"],
-    queryFn: fetchPosts,
-    staleTime: 0,
-    refetchOnWindowFocus: false,
-    select: (data) => [...data].sort((a, b) => (b.id > a.id ? 1 : -1)),
-  });
 
   const createPost = useCreatePost(user?.access_token);
   const likePostMutation = useLikePost(user?.access_token);
   const createReplyMutation = useCreateReply(user?.access_token);
 
+  // Fetch posts and all replies ONCE, then count replies per post
   useEffect(() => {
-    if (posts) {
-      const likeCounts: { [postId: string]: number } = {};
-      posts.forEach((post) => {
-        likeCounts[post.id] = post.likes;
-      });
-      setLikesCount(likeCounts);
+    async function fetchData() {
+      setLoadingPosts(true);
+      try {
+        let postsData: Post[] = await fetchPosts();
 
-      const replyCounts: { [postId: string]: number } = {};
-      posts.forEach((post) => (replyCounts[post.id] = 0));
-      setRepliesCount(replyCounts);
+        // Sort by id DESCENDING (latest to oldest)
+        postsData = [...postsData].sort((a, b) => Number(b.id) - Number(a.id));
+        setPosts(postsData);
+
+        // Like counts
+        const likeCounts: { [postId: string]: number } = {};
+        postsData.forEach((post) => {
+          likeCounts[post.id] = post.likes;
+        });
+        setLikesCount(likeCounts);
+
+        // Replies count - fetch all replies, map by post_id
+        let repliesData: Reply[] = [];
+        try {
+          repliesData = await fetchAllReplies(user?.access_token);
+        } catch (err) {
+          repliesData = [];
+        }
+        const replyCounts: { [postId: string]: number } = {};
+        repliesData.forEach((reply) => {
+          const pid = String(reply.post_id);
+          replyCounts[pid] = (replyCounts[pid] || 0) + 1;
+        });
+        setRepliesCount(replyCounts);
+      } catch (err) {
+        setPosts([]);
+        setLikesCount({});
+        setRepliesCount({});
+      }
+      setLoadingPosts(false);
     }
-  }, [posts]);
+    fetchData();
+  }, [user?.access_token]);
 
   // Stable callbacks to avoid infinite loops
   const handleRepliesFetched = useCallback((postId: string, count: number) => {
@@ -395,11 +434,12 @@ export default function PostsFeedPage() {
       socketRef.current = socket;
 
       socket.on("new_post", (newPost: Post) => {
-        queryClient.setQueryData<Post[]>(["posts"], (old) => {
+        setPosts((old) => {
           const filtered = old
             ? old.filter((post) => !String(post.id).startsWith("temp-"))
             : [];
-          return [newPost, ...(filtered || [])];
+          // Add newPost at the top (latest)
+          return [newPost, ...filtered];
         });
       });
 
@@ -439,7 +479,7 @@ export default function PostsFeedPage() {
       socketRef.current?.disconnect();
       socketRef.current = null;
     };
-  }, [queryClient]);
+  }, []);
 
   function handlePostSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -462,9 +502,7 @@ export default function PostsFeedPage() {
           : "You",
       likes: 0,
     };
-    queryClient.setQueryData<Post[]>(["posts"], (old) =>
-      old ? [optimisticPost, ...old] : [optimisticPost]
-    );
+    setPosts((old) => [optimisticPost, ...old]);
     const toastId = toast.loading("Posting...");
     createPost.mutate(
       { content: composer },
@@ -472,11 +510,25 @@ export default function PostsFeedPage() {
         onSuccess: () => {
           setComposer("");
           toast.success("Post delivered!", { id: toastId });
-          queryClient.invalidateQueries({ queryKey: ["posts"] });
+          setLoadingPosts(true);
+          fetchPosts().then((postsData) => {
+            postsData = [...postsData].sort(
+              (a, b) => Number(b.id) - Number(a.id)
+            );
+            setPosts(postsData);
+            setLoadingPosts(false);
+          });
         },
         onError: () => {
           toast.error("Failed to post. Please try again.", { id: toastId });
-          queryClient.invalidateQueries({ queryKey: ["posts"] });
+          setLoadingPosts(true);
+          fetchPosts().then((postsData) => {
+            postsData = [...postsData].sort(
+              (a, b) => Number(b.id) - Number(a.id)
+            );
+            setPosts(postsData);
+            setLoadingPosts(false);
+          });
         },
       }
     );
@@ -603,7 +655,7 @@ export default function PostsFeedPage() {
         </motion.div>
         {/* Feed */}
         <div className="flex flex-col gap-4 sm:gap-7">
-          {isPending ? (
+          {loadingPosts ? (
             <div className="text-center text-teal-700 py-6 font-semibold">
               Loading posts...
             </div>
@@ -612,7 +664,7 @@ export default function PostsFeedPage() {
               No posts yet. Be the first to share something!
             </div>
           ) : (
-            posts?.map((post) => (
+            posts.map((post) => (
               <motion.div
                 key={post.id}
                 initial={{ opacity: 0, y: 30 }}

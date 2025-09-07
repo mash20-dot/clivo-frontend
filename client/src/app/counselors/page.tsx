@@ -129,9 +129,7 @@ const CounselorPage: React.FC = () => {
                       d="M16 12v1a4 4 0 01-8 0v-1M12 16v2m0 4a9 9 0 10-9-9 9 9 0 009 9z"
                     />
                   </svg>
-                  <a href={`mailto:${counselor.email || ""}`} className="hover:underline">
                     {counselor.email || "info@counselors.com"}
-                  </a>
                 </div>
               </div>
             ))}
