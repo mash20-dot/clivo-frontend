@@ -225,11 +225,11 @@ function PostReplies({
                 className="bg-white border border-teal-100 rounded-xl px-4 py-3 shadow flex items-start gap-3"
               >
                 <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-teal-400 to-blue-300 flex items-center justify-center font-bold text-white text-lg">
-                  {(reply.username || "A")[0].toUpperCase()}
+                  {(reply.anonymous || "A")[0].toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1">
                   <span className="font-semibold text-teal-700 text-sm">
-                    {reply.username || "Anon"}
+                    {reply.anonymous || "Anonymous"}
                   </span>
                   <p className="text-gray-700 font-medium text-sm mt-1 whitespace-pre-wrap break-words">
                     {reply.content}
