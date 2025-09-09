@@ -674,12 +674,12 @@ export default function PostsFeedPage() {
               >
                 <div className="flex gap-3 sm:gap-4 items-start">
                   <div className="rounded-full object-cover border-2 border-teal-200 w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center bg-teal-600 text-white font-bold text-xl select-none">
-                    {post.username[0]?.toUpperCase() || "U"}
+                    {post.username ? post.username[0].toUpperCase() : "U"}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <span className="font-bold text-teal-700 text-base sm:text-lg">
-                        {post.username}
+                        {post.username || "Anonymous"}
                       </span>
                     </div>
                     <p className="text-sm sm:text-base text-gray-700 mb-3 whitespace-pre-line font-medium break-words">
