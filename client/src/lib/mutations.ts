@@ -9,6 +9,7 @@ import {
   likePost,
   fetchReplies,
   fetchMotivation,
+  updatePost,
 } from "./api";
 
 // --- Types for responses ---
@@ -17,31 +18,39 @@ export interface LoginResponse {
   access_token: string;
   "X-CSRF-TOKEN"?: string;
   username?: string;
+  id?: string; // <-- Add id from backend
+  phone_number?: string; // <-- Add phone_number from backend
 }
 
 export interface SignupResponse {
   message: string;
   access_token?: string;
   username?: string;
+  id?: string; // <-- Add id from backend
+  phone_number?: string; // <-- Add phone_number from backend
 }
 
 export interface CounselorLoginResponse {
   message: string;
   access_token: string;
   username?: string;
+  id?: string;
+  phone_number?: string;
 }
 
 export interface CounselorSignupResponse {
   message: string;
   access_token?: string;
   username?: string;
+  id?: string;
+  phone_number?: string;
 }
 
 export interface PostResponse {
   id: string;
   user_id: string;
   content: string;
-  username: string;
+  username: string | null;
   likes: number;
 }
 
@@ -63,7 +72,13 @@ export type LikePostResponse = {
 
 export const useLoginUser = () =>
   useMutation<LoginResponse, unknown, { email: string; password: string }>({
-    mutationFn: ({ email, password }) => loginUser(email, password),
+    mutationFn: async ({ email, password }) => {
+      const data = await loginUser(email, password);
+      // Save id & phone_number to localStorage for context
+      if (data?.id) localStorage.setItem("id", String(data.id));
+      if (data?.phone_number) localStorage.setItem("phone_number", data.phone_number);
+      return data;
+    },
   });
 
 export const useSignupUser = () =>
@@ -74,11 +89,18 @@ export const useSignupUser = () =>
       firstname: string;
       lastname: string;
       email: string;
+      phone_number: string;
       password: string;
       confirm_password: string;
     }
   >({
-    mutationFn: (payload) => signupUser(payload),
+    mutationFn: async (payload) => {
+      const data = await signupUser(payload);
+      // Save id & phone_number to localStorage for context
+      if (data?.id) localStorage.setItem("id", String(data.id));
+      if (data?.phone_number) localStorage.setItem("phone_number", data.phone_number);
+      return data;
+    },
   });
 
 export const useLoginCounselor = () =>
@@ -87,7 +109,12 @@ export const useLoginCounselor = () =>
     unknown,
     { email: string; password: string }
   >({
-    mutationFn: ({ email, password }) => loginCounselor(email, password),
+    mutationFn: async ({ email, password }) => {
+      const data = await loginCounselor(email, password);
+      if (data?.id) localStorage.setItem("id", String(data.id));
+      if (data?.phone_number) localStorage.setItem("phone_number", data.phone_number);
+      return data;
+    },
   });
 
 export const useSignupCounselor = () =>
@@ -101,9 +128,15 @@ export const useSignupCounselor = () =>
       confirm_password: string;
       location: string;
       license_number: string;
+      phone_number?: string;
     }
   >({
-    mutationFn: (payload) => signupCounselor(payload),
+    mutationFn: async (payload) => {
+      const data = await signupCounselor(payload);
+      if (data?.id) localStorage.setItem("id", String(data.id));
+      if (data?.phone_number) localStorage.setItem("phone_number", data.phone_number);
+      return data;
+    },
   });
 
 export const useCreatePost = (token?: string) => {
@@ -160,6 +193,22 @@ export const useLikePost = (token?: string) => {
       if (!token) throw new Error("Missing token");
       return likePost(postId, token);
     },
+  });
+};
+
+export const useUpdatePost = (token?: string) => {
+  const queryClient = useQueryClient();
+  return useMutation<
+    PostResponse,
+    unknown,
+    { post_id: string; new_content: string }
+  >({
+    mutationFn: (payload) => {
+      if (!token) throw new Error("Missing token");
+      return updatePost(payload, token);
+    },
+    // Optionally: update cache here if using react-query for posts
+    // onSuccess: (updated) => queryClient.invalidateQueries({ queryKey: ["posts"] }),
   });
 };
 

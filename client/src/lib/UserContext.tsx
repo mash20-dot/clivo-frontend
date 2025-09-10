@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { setApiLogoutHandler } from "./api"; // <-- adjust path if needed
+import { setApiLogoutHandler } from "./api";
 
 export interface AuthUser {
   id?: string;
@@ -20,20 +20,18 @@ interface UserContextType {
   logout: () => void;
 }
 
-// Context
 const UserContext = createContext<UserContextType>({
   user: null,
   setUser: () => {},
   logout: () => {},
 });
 
-// Provider
 export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
 
-  // Load from localStorage on mount
   useEffect(() => {
     try {
+      // Load ALL user info from localStorage, especially 'id'
       const token = localStorage.getItem("access_token");
       const email = localStorage.getItem("email");
       const username = localStorage.getItem("username");
@@ -43,9 +41,12 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       const fullname = localStorage.getItem("fullname") || undefined;
       const id = localStorage.getItem("id") || undefined;
 
+      // Debug: Show what id we have from localStorage
+      console.log("UserContext localStorage id:", id);
+
       if (token && email && role) {
         setUser({
-          id,
+          id, // <-- Ensure 'id' is set!
           access_token: token,
           email,
           username: username || undefined,
@@ -58,10 +59,9 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     } catch {}
   }, []);
 
-  // Save to localStorage on user change
   useEffect(() => {
     if (user) {
-      if (user.id) localStorage.setItem("id", user.id);
+      if (user.id) localStorage.setItem("id", user.id); // <-- Save id!
       localStorage.setItem("access_token", user.access_token);
       localStorage.setItem("email", user.email);
       localStorage.setItem("role", user.role);
@@ -90,11 +90,9 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     window.location.href = "/auth/login";
   };
 
-  // Set up global API logout handler on mount
   useEffect(() => {
     setApiLogoutHandler(logout);
     return () => setApiLogoutHandler(() => {});
-    // eslint-disable-next-line
   }, []);
 
   return (

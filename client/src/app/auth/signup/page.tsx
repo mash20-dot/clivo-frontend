@@ -1,7 +1,7 @@
 'use client';
 import React, { useState } from "react";
 import Link from "next/link";
-import { Eye, EyeOff, Lock, Mail, User, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail, User, Loader2, Phone } from "lucide-react";
 import Image from "next/image";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
@@ -15,6 +15,7 @@ export default function SignupPage() {
     firstname: "",
     lastname: "",
     email: "",
+    phone_number: "",
     password: "",
     confirm_password: "",
   });
@@ -27,12 +28,12 @@ export default function SignupPage() {
     form.firstname.trim() &&
     form.lastname.trim() &&
     form.email.trim() &&
+    form.phone_number.trim() &&
     form.password.trim() &&
     form.confirm_password.trim();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Use trimmed values for both password fields
     if (form.password.trim() !== form.confirm_password.trim()) {
       toast.error("Passwords do not match.");
       return;
@@ -42,6 +43,7 @@ export default function SignupPage() {
         firstname: form.firstname.trim(),
         lastname: form.lastname.trim(),
         email: form.email.trim(),
+        phone_number: form.phone_number.trim(),
         password: form.password,
         confirm_password: form.confirm_password,
       },
@@ -148,6 +150,23 @@ export default function SignupPage() {
                 disabled={mutation.isPending}
               />
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-teal-400" />
+            </div>
+          </label>
+
+          <label className="flex flex-col gap-1 text-sm font-medium text-gray-700">
+            Phone Number
+            <div className="relative">
+              <input
+                type="tel"
+                placeholder="Phone Number"
+                className="w-full rounded-lg border border-teal-200 bg-white/60 py-3 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-green-500 transition shadow-sm"
+                required
+                autoComplete="tel"
+                value={form.phone_number}
+                onChange={(e) => setForm(f => ({ ...f, phone_number: e.target.value }))}
+                disabled={mutation.isPending}
+              />
+              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-teal-400" />
             </div>
           </label>
 

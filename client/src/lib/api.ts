@@ -103,6 +103,20 @@ export const createReply = async (
   return res.data;
 };
 
+// Update a post (edit functionality) -- NOW USES PUT!
+export const updatePost = async (
+  payload: { post_id: string; new_content: string },
+  token: string
+) => {
+  // Use PUT and send the post_id in the URL, new_content in the body
+  const res = await axios.put(
+    `${API_URL}/express/update_post/${payload.post_id}`,
+    { new_content: payload.new_content },
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  return res.data;
+};
+
 // Motivation
 export const fetchMotivation = async (token: string) => {
   const res = await axios.get(`${API_URL}/motivate/inspiration`, {
