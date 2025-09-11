@@ -1,16 +1,6 @@
-import { useMemo, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Smile } from "lucide-react";
-import { useFetchReplies, useCreateReply } from "@/lib/mutations";
-
-export interface Reply {
-  id?: string;
-  post_id: string | number;
-  user_id: string | number;
-  content: string;
-  username?: string;
-  anonymous?: string;
-  created_at?: string;
-}
+import { useCreateReply, ReplyResponse } from "@/lib/mutations";
 
 interface RepliesSectionProps {
   postId: string;
@@ -20,6 +10,7 @@ interface RepliesSectionProps {
   onCancel: () => void;
   onRepliesLoaded: (count: number) => void;
   onReplyPosted: () => void;
+  replies: ReplyResponse[]; // Use ReplyResponse everywhere
 }
 
 export default function RepliesSection({
@@ -30,24 +21,18 @@ export default function RepliesSection({
   onCancel,
   onRepliesLoaded,
   onReplyPosted,
+  replies,
 }: RepliesSectionProps) {
   const createReplyMutation = useCreateReply(token);
-  const { data: allReplies = [], isPending } = useFetchReplies(postId, token);
 
-  const replies = useMemo<Reply[]>(
-    () =>
-      allReplies
-        .filter((r) => String(r.post_id) === String(postId))
-        .sort((a, b) => Number(b.id) - Number(a.id)),
-    [allReplies, postId]
-  );
-
+  // Only call onRepliesLoaded when count actually changes
   const lastCountRef = useRef<number>(-1);
   useEffect(() => {
     if (replies.length !== lastCountRef.current) {
       onRepliesLoaded(replies.length);
       lastCountRef.current = replies.length;
     }
+    // eslint-disable-next-line
   }, [replies.length, onRepliesLoaded]);
 
   return (
@@ -149,23 +134,21 @@ export default function RepliesSection({
         </div>
       </div>
       <div className="mt-5">
-        {isPending ? (
-          <div className="text-gray-400 text-xs">Loading replies...</div>
-        ) : !replies.length ? (
+        {replies.length === 0 ? (
           <div className="text-gray-400 text-xs">No replies yet.</div>
         ) : (
           <ul className="space-y-3">
             {replies.map((reply, idx) => (
               <li
-                key={reply.id ? `reply-${reply.id}` : `reply-${reply.post_id}-${idx}`}
+                key={reply.id ?? `${reply.user_id}_${idx}_${reply.content}`}
                 className="bg-white border border-teal-100 rounded-xl px-4 py-3 shadow flex items-start gap-3"
               >
                 <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-teal-400 to-blue-300 flex items-center justify-center font-bold text-white text-lg">
-                  {(reply.anonymous || "A")[0].toUpperCase()}
+                  {(reply.anonymous || reply.username || "A")[0].toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1">
                   <span className="font-semibold text-teal-700 text-sm">
-                    {reply.anonymous || "Anonymous"}
+                    {reply.anonymous || reply.username || "Anonymous"}
                   </span>
                   <p className="text-gray-700 font-medium text-sm mt-1 whitespace-pre-wrap break-words">
                     {reply.content}

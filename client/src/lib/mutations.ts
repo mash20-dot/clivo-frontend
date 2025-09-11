@@ -10,6 +10,7 @@ import {
   fetchReplies,
   fetchMotivation,
   updatePost,
+  fetchPostsWithReplies,
 } from "./api";
 
 // --- Types for responses ---
@@ -18,16 +19,16 @@ export interface LoginResponse {
   access_token: string;
   "X-CSRF-TOKEN"?: string;
   username?: string;
-  id?: string; // <-- Add id from backend
-  phone_number?: string; // <-- Add phone_number from backend
+  id?: string;
+  phone_number?: string;
 }
 
 export interface SignupResponse {
   message: string;
   access_token?: string;
   username?: string;
-  id?: string; // <-- Add id from backend
-  phone_number?: string; // <-- Add phone_number from backend
+  id?: string;
+  phone_number?: string;
 }
 
 export interface CounselorLoginResponse {
@@ -52,6 +53,7 @@ export interface PostResponse {
   content: string;
   username: string | null;
   likes: number;
+  replies?: ReplyResponse[];
 }
 
 export interface ReplyResponse {
@@ -74,9 +76,9 @@ export const useLoginUser = () =>
   useMutation<LoginResponse, unknown, { email: string; password: string }>({
     mutationFn: async ({ email, password }) => {
       const data = await loginUser(email, password);
-      // Save id & phone_number to localStorage for context
       if (data?.id) localStorage.setItem("id", String(data.id));
-      if (data?.phone_number) localStorage.setItem("phone_number", data.phone_number);
+      if (data?.phone_number)
+        localStorage.setItem("phone_number", data.phone_number);
       return data;
     },
   });
@@ -96,9 +98,9 @@ export const useSignupUser = () =>
   >({
     mutationFn: async (payload) => {
       const data = await signupUser(payload);
-      // Save id & phone_number to localStorage for context
       if (data?.id) localStorage.setItem("id", String(data.id));
-      if (data?.phone_number) localStorage.setItem("phone_number", data.phone_number);
+      if (data?.phone_number)
+        localStorage.setItem("phone_number", data.phone_number);
       return data;
     },
   });
@@ -112,7 +114,8 @@ export const useLoginCounselor = () =>
     mutationFn: async ({ email, password }) => {
       const data = await loginCounselor(email, password);
       if (data?.id) localStorage.setItem("id", String(data.id));
-      if (data?.phone_number) localStorage.setItem("phone_number", data.phone_number);
+      if (data?.phone_number)
+        localStorage.setItem("phone_number", data.phone_number);
       return data;
     },
   });
@@ -134,7 +137,8 @@ export const useSignupCounselor = () =>
     mutationFn: async (payload) => {
       const data = await signupCounselor(payload);
       if (data?.id) localStorage.setItem("id", String(data.id));
-      if (data?.phone_number) localStorage.setItem("phone_number", data.phone_number);
+      if (data?.phone_number)
+        localStorage.setItem("phone_number", data.phone_number);
       return data;
     },
   });
@@ -186,7 +190,6 @@ export const useFetchReplies = (postId: string, token?: string) =>
     staleTime: 0,
   });
 
-// Like/unlike (toggle) - only needs postId, gets token from hook param
 export const useLikePost = (token?: string) => {
   return useMutation<LikePostResponse, unknown, { postId: string }>({
     mutationFn: ({ postId }) => {
@@ -196,19 +199,35 @@ export const useLikePost = (token?: string) => {
   });
 };
 
+type UpdatePostResponse = {
+  message: string;
+  new_content: string;
+  post_id: string | number;
+};
+type UpdatePostVariables = { post_id: string; new_content: string };
+
 export const useUpdatePost = (token?: string) => {
   const queryClient = useQueryClient();
-  return useMutation<
-    PostResponse,
-    unknown,
-    { post_id: string; new_content: string }
-  >({
-    mutationFn: (payload) => {
+  return useMutation<UpdatePostResponse, unknown, UpdatePostVariables>({
+    mutationFn: async ({
+      post_id,
+      new_content,
+    }: UpdatePostVariables): Promise<UpdatePostResponse> => {
       if (!token) throw new Error("Missing token");
-      return updatePost(payload, token);
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE}/express/update_post/${post_id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ new_content }),
+        }
+      );
+      if (!res.ok) throw new Error("Failed to update post");
+      return res.json();
     },
-    // Optionally: update cache here if using react-query for posts
-    // onSuccess: (updated) => queryClient.invalidateQueries({ queryKey: ["posts"] }),
   });
 };
 
@@ -221,6 +240,15 @@ export const useFetchMotivation = (token?: string) =>
       if (!token) throw new Error("Missing token");
       return fetchMotivation(token);
     },
+    enabled: !!token,
+    staleTime: 0,
+  });
+
+// Fetch posts with replies in one go
+export const useFetchPostsWithReplies = (token?: string) =>
+  useQuery<PostResponse[]>({
+    queryKey: ["posts_with_replies", token],
+    queryFn: () => fetchPostsWithReplies(token),
     enabled: !!token,
     staleTime: 0,
   });

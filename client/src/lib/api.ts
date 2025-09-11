@@ -57,7 +57,15 @@ export const fetchCounselors = async (token?: string) => {
   return res.data;
 };
 
-// Posts and comments
+// Fetch posts with replies all at once
+export const fetchPostsWithReplies = async (token?: string) => {
+  // No token required? If it is, add header
+  const res = await axios.get(`${API_URL}/express/get_post_replies`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  return res.data;
+};
+
 export const fetchPosts = async () => {
   const res = await axios.get(`${API_URL}/express/get_comment`);
   return res.data;
