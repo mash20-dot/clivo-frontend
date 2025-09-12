@@ -8,14 +8,6 @@ import { toast } from "react-hot-toast";
 
 const API_URL = process.env.NEXT_PUBLIC_API_BASE || "https://mindspace-backend-gusv.onrender.com";
 
-type Post = {
-  id: string;
-  user_id: string;
-  content: string;
-  username: string;
-  likes: number;
-};
-
 type Reply = {
   id?: string;
   post_id: string | number;
@@ -26,7 +18,22 @@ type Reply = {
   created_at?: string;
 };
 
-function getFirstNameInitial(profile: any): string {
+type Post = {
+  id: string;
+  user_id: string;
+  content: string;
+  username?: string;
+  likes: number;
+  replies?: Reply[];
+};
+
+type Profile = {
+  role?: string;
+  firstname?: string;
+  fullname?: string;
+};
+
+function getFirstNameInitial(profile: Profile): string {
   if (!profile) return "U";
   if (profile.role === "user" && profile.firstname) return profile.firstname[0].toUpperCase();
   if (profile.role === "counselor" && profile.fullname) return profile.fullname[0].toUpperCase();
@@ -46,53 +53,36 @@ export default function SinglePostPage({ params }: { params: Promise<{ id: strin
   const [liked, setLiked] = useState(false);
   const [authError, setAuthError] = useState(false);
 
-  // Unwrap params for Next.js v14+
+  // Unwrap params for Next.js v14+ (if you use dynamic route [id])
   const { id } = React.use(params);
 
-  // Fetch all posts, all replies, filter for post and replies count
+  // Fetch a single post by finding it in the array by ID
   useEffect(() => {
     async function loadPostAndReplies() {
       setLoading(true);
       setAuthError(false);
       try {
-        // Fetch posts
-        const postsRes = await fetch(`${API_URL}/express/get_comment`);
-        const posts: Post[] = await postsRes.json();
-        const found = posts.find((p) => String(p.id) === String(id)) || null;
-        setPost(found);
-        setLikes(found?.likes || 0);
+        const res = await fetch(`${API_URL}/express/get_post_replies?id=${id}`);
+        if (!res.ok) throw new Error("Post not found");
+        const postArray: Post[] = await res.json(); // specify type here
 
-        // Fetch all replies (with token)
-        let repliesData: Reply[] = [];
-        if (user?.access_token) {
-          const repliesRes = await fetch(`${API_URL}/express/get_reply`, {
-            headers: {
-              Authorization: `Bearer ${user.access_token}`,
-              "Content-Type": "application/json",
-            },
-          });
-          if (repliesRes.ok) {
-            repliesData = await repliesRes.json();
-            setAuthError(false);
-          } else {
-            setAuthError(true);
-            repliesData = [];
-          }
-        } else {
-          setAuthError(true);
-          repliesData = [];
-        }
+        // Find the post whose id matches the requested id
+        const actualPost = postArray.find((p) => String(p.id) === String(id));
 
-        // Count replies for each post
-        const counts: { [postId: string]: number } = {};
-        repliesData.forEach((reply) => {
-          const pid = String(reply.post_id);
-          counts[pid] = (counts[pid] || 0) + 1;
+        if (!actualPost) throw new Error("Post not found!");
+
+        setPost({
+          id: actualPost.id,
+          user_id: actualPost.user_id,
+          content: actualPost.content,
+          username: actualPost.username,
+          likes: actualPost.likes,
+          replies: actualPost.replies || [],
         });
-        setRepliesCount(counts);
-
-        // Filter replies for current post
-        setReplies(repliesData.filter((r) => String(r.post_id) === String(id)));
+        setLikes(actualPost.likes);
+        setReplies(actualPost.replies || []);
+        setRepliesCount({ [actualPost.id]: (actualPost.replies || []).length });
+        setAuthError(false);
       } catch (err) {
         setPost(null);
         setReplies([]);
@@ -136,7 +126,7 @@ export default function SinglePostPage({ params }: { params: Promise<{ id: strin
         },
         body: JSON.stringify({ post_id: post.id, content: replyValue }),
       });
-      const newReply = await res.json();
+      const newReply: Reply = await res.json();
       setReplies([newReply, ...replies]);
       setReplyValue("");
       setRepliesCount((prev) => ({
@@ -187,10 +177,14 @@ export default function SinglePostPage({ params }: { params: Promise<{ id: strin
         <div className="bg-white rounded-3xl shadow-lg border border-teal-100 p-3 sm:p-4 md:p-6 mb-8">
           <div className="flex gap-2 sm:gap-3 md:gap-4 items-start">
             <div className="rounded-full object-cover border-2 border-teal-200 w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 flex items-center justify-center bg-teal-600 text-white font-bold text-lg md:text-xl select-none">
-              {post.username[0]?.toUpperCase() || "U"}
+              {typeof post.username === "string" && post.username.length > 0
+                ? post.username[0].toUpperCase()
+                : "U"}
             </div>
             <div className="flex-1 min-w-0">
-              <span className="font-bold text-teal-700 text-base sm:text-lg md:text-xl">{post.username}</span>
+              <span className="font-bold text-teal-700 text-base sm:text-lg md:text-xl">
+                {post.username || "Anonymous"}
+              </span>
               <p className="text-sm sm:text-base md:text-lg text-gray-700 mb-3 whitespace-pre-line font-medium break-words">
                 {post.content}
               </p>
@@ -268,7 +262,9 @@ export default function SinglePostPage({ params }: { params: Promise<{ id: strin
                       className="bg-white border border-teal-100 rounded-xl px-2 py-2 sm:px-4 sm:py-3 shadow flex items-start gap-2 sm:gap-3"
                     >
                       <div className="flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-teal-400 to-blue-300 flex items-center justify-center font-bold text-white text-base sm:text-lg">
-                        {(reply.username || "A")[0].toUpperCase()}
+                        {typeof reply.username === "string" && reply.username.length > 0
+                          ? reply.username[0].toUpperCase()
+                          : "A"}
                       </div>
                       <div className="min-w-0 flex-1">
                         <span className="font-semibold text-teal-700 text-xs sm:text-sm">
