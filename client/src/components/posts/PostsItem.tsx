@@ -8,6 +8,7 @@ import {
   Facebook,
   Linkedin,
   Clipboard,
+  BadgeCheck,
 } from "lucide-react";
 import type { ReplyResponse } from "@/lib/mutations";
 import RepliesSection from "./RepliesSection";
@@ -129,8 +130,21 @@ export default function PostItem({
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <span className="font-bold text-teal-700 text-base sm:text-lg">
-              {post.username || "Anonymous"}
+            <span className="font-bold text-teal-700 text-base sm:text-lg flex items-center gap-1">
+              {post.username === "Clivo" ? (
+                <>
+                  Clivo
+                  <span
+                    className="ml-1 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-blue-100 text-teal-700 text-xs font-semibold"
+                    title="Verified"
+                  >
+                    <BadgeCheck className="w-3.5 h-3.5 mr-0.5 text-teal-500" />
+                    Verified
+                  </span>
+                </>
+              ) : (
+                post.username || "Anonymous"
+              )}
             </span>
           </div>
           {editing ? (
